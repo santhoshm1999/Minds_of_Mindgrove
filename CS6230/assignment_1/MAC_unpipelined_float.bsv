@@ -1,4 +1,4 @@
-package MAC_unpipelined;
+package MAC_unpipelined_float;
 
 typedef struct {
     Bit#(1) sign;
@@ -13,25 +13,27 @@ typedef struct {
     Bit#(23) mantissa;
 } Fp32 deriving (Bits, Eq);
 
-interface Ifc_MAC_unpipelined;
-    method Action get_inp_b(Bf16 inp_B);
-    method Action get_inp_c(Bf16 inp_C);
-    method Fp32 get_result(); // Method to retrieve the result
-endinterface: Ifc_MAC_unpipelined
+interface Ifc_MAC_unpipelined_float;
+    method Action get_inp_a(Bf16 inp_A);
+    method Action get_inp_b(Bf16 inp_b);
+    // method Fp32 get_result(); // Method to retrieve the result
+    method ActionValue#(Bf16) get_result(); // Method to retrieve the result
+endinterface: Ifc_MAC_unpipelined_float
 
 (* synthesize *)
-module mkUnpipelined (Ifc_MAC_unpipelined);
+module mkUnpipelined (Ifc_MAC_unpipelined_float);
 
+    Reg#(Bf16) inp_a <- mkReg(Bf16{sign:1'd0, exp:8'd0, mantissa: 7'd0});
     Reg#(Bf16) inp_b <- mkReg(Bf16{sign:1'd0, exp:8'd0, mantissa: 7'd0});
-    Reg#(Bf16) inp_c <- mkReg(Bf16{sign:1'd0, exp:8'd0, mantissa: 7'd0});
     Reg#(Bf16) result_mul <- mkReg(Bf16{sign:1'd0, exp:8'd0, mantissa: 7'd0});
     Reg#(Fp32) result_add <- mkReg(Fp32{sign:1'd0, exp:8'd0, mantissa: 23'd0});
     Reg#(Bit#(1)) tmp_sign <- mkReg(1'd0);
     Reg#(Bit#(8)) tmp_exp <- mkReg(8'd0);
     Reg#(Bit#(23)) tmp_mantissa <- mkReg(23'd0);
+    Reg#(Bool) got_a <- mkReg(False);
     Reg#(Bool) got_b <- mkReg(False);
-    Reg#(Bool) got_c <- mkReg(False);
     Reg#(Bool) mul_done <- mkReg(False);
+    Reg#(Bit#(1)) get_r <- mkReg(0);
 
     // Method to add two 8-bit numbers without using `+`
     function Bit#(8) add(Bit#(8) a, Bit#(8) b);
@@ -73,10 +75,10 @@ module mkUnpipelined (Ifc_MAC_unpipelined);
     endfunction
 
     // Rule to compute the result when both inputs are available
-    rule get_mul_res(got_b && got_c && !mul_done);
+    rule get_mul_res(got_a && got_b && !mul_done);
         // Retrieve inputs
-        Bf16 a = inp_b;
-        Bf16 b = inp_c;
+        Bf16 a = inp_a;
+        Bf16 b = inp_b;
 		Bool return_bool = False;
 
         // Intermediate variables
@@ -84,31 +86,21 @@ module mkUnpipelined (Ifc_MAC_unpipelined);
 
         // Handle zero case
         if (a.exp == 0 && a.mantissa == 0) begin
-            tmp_sign <= b.sign; // If a is zero, return b
-            tmp_exp <= b.exp; // If a is zero, return b
-            tmp_mantissa <= zeroExtend(b.mantissa) << 16; // If a is zero, return b
-            result_add.sign <= tmp_sign; // If a is zero, return b
-            result_add.exp <= tmp_exp; // If a is zero, return b
-            result_add.mantissa <= tmp_mantissa; // If a is zero, return b
-            got_b <= False; // Reset input flags
-            got_c <= False;
+            result_mul <= Bf16{sign:b.sign, exp:b.exp, mantissa:b.mantissa};
+            got_a <= False; // Reset input flags
+            got_b <= False;
             return_bool = True; // Exit early
         end
         if (b.exp == 0 && b.mantissa == 0 && ! return_bool) begin
-            tmp_sign <= a.sign; // If b is zero, return a
-            tmp_exp <= a.exp; // If b is zero, return a
-            tmp_mantissa <= zeroExtend(a.mantissa) << 16; // If b is zero, return a
-            result_add.sign <= tmp_sign; // If b is zero, return a
-            result_add.exp <= tmp_exp; // If b is zero, return a
-            result_add.mantissa <= tmp_mantissa; // If b is zero, return a
-            got_b <= False; // Reset input flags
-            got_c <= False;
+            result_mul <= Bf16{sign:a.sign, exp:a.exp, mantissa:a.mantissa};
+            got_a <= False; // Reset input flags
+            got_b <= False;
             return_bool = True; // Exit early
         end
 
 		if (!return_bool) begin
 			Bit#(8) tmp_exp = 8'd0;
-	        Bit#(7) tmp_mantissa;
+	        Bit#(7) tmp_man;
 
 			// Handle exponent addition (subtract the bias, typically 127 for float)
 			tmp_exp = add(a.exp, b.exp); // Use custom add function
@@ -131,19 +123,19 @@ module mkUnpipelined (Ifc_MAC_unpipelined);
 			// Normalization logic for mantissa
 			if (mantissa_product[15] == 1) begin
 				// Overflow in mantissa16
-				tmp_mantissa = mantissa_product[14:8]; // Shift right
+				tmp_man = mantissa_product[14:8]; // Shift right
 				tmp_exp = increment(tmp_exp); // Increment exponent
 			end else begin
-				tmp_mantissa = mantissa_product[13:7]; // No overflow
+				tmp_man = mantissa_product[13:7]; // No overflow
 			end
 
 			// Assign result
-			result_add <= Fp32{sign: tmp_sign, exp: tmp_exp, mantissa: zeroExtend(tmp_mantissa[6:0])};
+			result_mul <= Bf16{sign: tmp_sign, exp: tmp_exp, mantissa: tmp_man[6:0]};
             mul_done <= True;
 			
 			// Reset flags after result computation
+			got_a <= False;
 			got_b <= False;
-			got_c <= False;
 		end
     endrule
 
@@ -152,21 +144,23 @@ module mkUnpipelined (Ifc_MAC_unpipelined);
         mul_done <= False;
     endrule
 
+    // Method to set input A
+    method Action get_inp_a(Bf16 inp_A);
+        inp_a <= inp_A;
+        got_a <= True;
+    endmethod
+
     // Method to set input B
     method Action get_inp_b(Bf16 inp_B);
         inp_b <= inp_B;
         got_b <= True;
     endmethod
 
-    // Method to set input C
-    method Action get_inp_c(Bf16 inp_C);
-        inp_c <= inp_C;
-        got_c <= True;
-    endmethod
-
     // Method to get the result
-    method Fp32 get_result();
-        return result_add;
+    // method Fp32 get_result();
+    method ActionValue#(Bf16) get_result();
+        get_r <= 1;
+        return result_mul;
     endmethod
 
 endmodule: mkUnpipelined
