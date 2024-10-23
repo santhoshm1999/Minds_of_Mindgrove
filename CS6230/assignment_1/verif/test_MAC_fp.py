@@ -2052,73 +2052,60 @@ def float_2_bin(val):
         val = val - dec
         # print(bin_fl[:7])
     print(f'float to bin: {bin_fl[:23]}')
-    return (bin_fl[:23]).rjust(23, '0')
+    return (bin_fl).rstrip('0')
 
 def addition(val_a, val_b):
-    temp_a = val_a
-    temp_b = val_b
-
-    while temp_b != 0:
-        carry = temp_a & temp_b
-        temp_a = temp_a ^ temp_b
-        temp_b = carry << 1
-    return temp_a
+    return val_a + val_b
 
 def multiplication(man_a, man_b):
+    a = int(man_a,2)
+    b = int(man_b,2)
     result = 0
-    for i in range(7):  # Loop through each bit of man_b
-        if man_b & (1 << i):  # Check if the i-th bit of man_b is set
-            result = addition(result, man_a << i)  # Shift and add
+    while b > 0:
+        if b & 1:
+            result = addition(result, a)
+        a <<= 1
+        b >>= 1
+    result = bin(result).replace("0b","")
+    result = result[1:].ljust(23,'0')
+    print(f'END_RESULT {result}')
     return result
+    # return man_a * man_b
 
 def extract_val(val, bin_len):
     print(f'Binary val: {val}')
     # sign-1bit, exp-8bits, mantissa-7bits
     return (int(val[0], 2), int(val[1:9], 2), int(val[9:], 2))
 
-def float_to_bin(f):
-    return ''.join(f'{c:08b}' for c in struct.pack('!f', f))
-
-def bin_to_float(b):
-    return struct.unpack('!f', int(b, 2).to_bytes(4, 'big'))[0]
 
 def multiplier(val1, val2):
     a_sign, a_exp, a_mantissa = extract_val(val1, 16)
     b_sign, b_exp, b_mantissa = extract_val(val2, 16)
 
     sign_res = a_sign ^ b_sign
-    exp_res = addition(a_exp, b_exp) - bias  # Adjust for bias
+    exp_res = bin(addition(a_exp, b_exp) - bias).replace('0b','')  # Adjust for bias
+    print(f'Multiplication result (exponent): {exp_res}')
 
     # Perform multiplication of mantissas
-    man_res = multiplication(a_mantissa, b_mantissa)
-
-    # Normalize mantissa if necessary
-    while man_res >= (1 << 8):
-        man_res >>= 1
-        exp_res = addition(exp_res, 1)
-
-    if man_res == 0:
-        return 0.0  # Handle zero case
-
-    # Rounding logic
-    rounding_bit = (man_res >> 6) & 1
-    sticky_bit = (man_res >> 5) & 1
-
-    if rounding_bit == 1 or sticky_bit == 1:
-        man_res = addition(man_res, 1 << 6)
-
-    man_res &= (1 << 7) - 1  # Mask to 7 bits
-    if exp_res <= 0:
-        exp_res = 0
-        # Handle underflow: Shift mantissa right
-        man_res >>= (1 - exp_res)
+    bin_a_man = f'1{bin(a_mantissa).replace("0b","").lstrip("0")}'
+    bin_b_man = f'1{bin(b_mantissa).replace("0b","").lstrip("0")}'
+    print(f'Multiplication result (a_mantissa): {bin_a_man}')
+    print(f'Multiplication result (b_mantissa): {bin_b_man}')
+    man_res = multiplication(bin_a_man, bin_b_man)
+    print(f'Multiplication result (mantissa): {man_res}')
 
     # Prepare the result in binary form
-    res_mul = f"{sign_res}{exp_res:08b}{man_res:07b}"
-
+    print(f'SIGN_RES: {sign_res}')
+    print(f'EXP_RES: {exp_res}')
+    print(f'MAN_RES: {man_res}')
+    res_mul = f"{sign_res}{exp_res}{man_res}"
     print(f'MULTIPLIER Result: {res_mul}')
 
-    return bin_to_float(res_mul)
+    # fl_res = bin_to_float(res_mul)
+
+    assert res_mul == '01000000111000000000000000000000', f'float(3.5 * 2.0) not equals to {res_mul}'
+
+    return res_mul
 
 
 def adder(res_mul, val3):
@@ -2126,10 +2113,52 @@ def adder(res_mul, val3):
     c_sign, c_exp, c_manitassa = extract_val(val3,32)
     return 0
 
+
+def dec_2_ieee(num):
+    rem = 0
+    len_bias = 0
+    if num >= 0:
+        sign = '0'
+    else:
+        sign = '1'
+    print(f'*************************************{num}')
+    spli_val = str(num).split('.')
+    top = int(spli_val[0])
+    top_bin = bin(top).replace("0b","")
+    print(f'top: {top}')
+    temp_man = float_2_bin(num-top)
+    binary_num = top_bin + "." + temp_man
+    print(f'floating binary: {binary_num}')
+    while True:
+        ind = binary_num.index('.')
+        print(f'Index: {ind}')
+        if(len(binary_num[:ind]) == 1):
+            break
+        len_bias += 1
+        temp = binary_num.replace('.','')
+        temp = temp[:ind-1] + '.' + temp[ind-1:]
+        print(f'TEMP: {temp}')
+        # print(binary_num)
+        binary_num = temp
+    # print(len_bias)
+    print(f'floating binary: {binary_num}')
+    mantissa = binary_num[ind+1:ind+8].ljust(7,'0')
+    print(f"MANTISSA: {mantissa}")
+    exp = bin(127+len_bias).replace("0b","")
+    print(f'EXP: {exp}')
+    ieee = sign + exp + mantissa
+    print(f'***********IEEE VALUE: {ieee} ******************')
+    # ieee = ieee.ljust(32,'0')
+    print(f'***********IEEE VALUE: {ieee} ******************')
+    return ieee
+
+
 def MAC(val1, val2, val3):
-    val1 = float_to_bin(val1)[:16]
-    val2 = float_to_bin(val2)[:16]
-    val3 = float_to_bin(val3)
+    val1 = dec_2_ieee(val1)
+    assert val1[:16] == '0100000001100000', f'{val1[:16]} not equal to 0100000001100000'
+    val2 = dec_2_ieee(val2)
+    assert val2[:16] == '0100000000000000', f'{val2[:16]} not equal to 0100000000000000'
+    val3 = dec_2_ieee(val3)
     print('******************')
     print(val1)
     print(val2)
@@ -2139,52 +2168,12 @@ def MAC(val1, val2, val3):
     print('******************')
     print(res_mul)
     print('******************')
-    # res_mul = bin(res_mul).replace("0b","")
-    res_mul = float_to_bin(res_mul)
+    res_mul = dec_2_ieee(res_mul)
     print('******************')
     print(res_mul)
     print('******************')
     res_add = adder(res_mul, val3)
-
-
-# def dec_2_ieee(num):
-#     rem = 0
-#     len_bias = 0
-#     print(f'*************************************{num}')
-#     spli_val = str(num).split('.')
-#     top = int(spli_val[0])
-#     top_bin = bin(top).replace("0b","")
-#     print(f'top: {top}')
-#     manitassa = float_2_bin(num-top)
-#     binary_num = top_bin + "." + manitassa
-#     print(f'floating binary: {binary_num}')
-#     while True:
-#         ind = binary_num.index('.')
-#         if(len(binary_num[:ind]) == 1):
-#             break
-#         len_bias += 1
-#         temp = binary_num[:ind-1] + '.' + binary_num[ind+1:]
-#         # print(binary_num)
-#         binary_num = temp
-#     # print(len_bias)
-#     print(f'floating binary: {binary_num}')
-#     exp = bin(127+len_bias).replace("0b","")
-#     ieee = '0' + exp + manitassa
-#     print(f'***********IEEE VALUE: {ieee} ******************')
-#     return ieee
-
-
-def mul(ref_a, ref_b, ref_c, res):
-    ref_a = 46.0
-    ref_b = 9502720.0
-    ref_c = 159383.5625
-    ref_res = ref_a * ref_b
-    ref_res += ref_c
-    print(f'************RESULT: {ref_res}')
-    conv = (dec_2_ieee(ref_res))
-    res = (dec_2_ieee(436367008.0))
-    print(type(conv), conv)
-    assert res == conv, f'{res} not equal to {conv}, {i}'
+    print(res_add)
 
 
 @cocotb.test()
@@ -2209,8 +2198,8 @@ async def test_1(dut):
         await RisingEdge(dut.CLK)
 
 
-# for i in range(1):
-#     # mul(a[i],b[i],c[i], ref_ans[i])
-#     # MAC(bin(a[i]),bin(b[i]),bin(c[i]))
-#     # MAC(10.75,7868380086272.0,25.345001220703125)
-#     MAC(3.5,2.0,25.345001220703125)
+for i in range(1):
+    # mul(a[i],b[i],c[i], ref_ans[i])
+    # MAC(bin(a[i]),bin(b[i]),bin(c[i]))
+    # MAC(10.75,7868380086272.0,25.345001220703125)
+    MAC(3.5,2.0,2.0)
