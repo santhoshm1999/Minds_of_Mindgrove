@@ -1,0 +1,8 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1730053838" />
+    <testcase name="test_1" classname="test_MAC_int" file="/home/shakti/CAD_assignment/CS6230/int/verif/test_MAC_int.py" lineno="65" time="0.014111757278442383" sim_time_ns="165000.001" ratio_time="11692378.046500262">
+      <failure />
+    </testcase>
+  </testsuite>
+</testsuites>

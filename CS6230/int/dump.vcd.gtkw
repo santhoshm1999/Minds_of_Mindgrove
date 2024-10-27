@@ -1,0 +1,63 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sun Oct 27 18:13:05 2024
+[*]
+[dumpfile] "/home/shakti/CAD_assignment/CS6230/int/dump.vcd"
+[dumpfile_mtime] "Sun Oct 27 17:35:14 2024"
+[dumpfile_size] 26947
+[savefile] "/home/shakti/CAD_assignment/CS6230/int/dump.vcd.gtkw"
+[timestart] 0
+[size] 1000 600
+[pos] -1 -1
+*0.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[sst_width] 233
+[signals_width] 198
+[sst_expanded] 1
+[sst_vpaned_height] 144
+@28
+top.mkintmul.CLK
+top.mkintmul.EN_get_A
+top.mkintmul.EN_get_B
+top.mkintmul.EN_get_C
+top.mkintmul.RST_N
+top.mkintmul.WILL_FIRE_RL_multiply
+top.mkintmul.WILL_FIRE_RL_prep_mul
+top.mkintmul.WILL_FIRE_RL_rl_add
+top.mkintmul.WILL_FIRE_RL_rl_mul
+top.mkintmul.WILL_FIRE_get_A
+top.mkintmul.WILL_FIRE_get_B
+top.mkintmul.WILL_FIRE_get_C
+top.mkintmul.add_done
+@22
+top.mkintmul.add_out[31:0]
+top.mkintmul.counter[4:0]
+@28
+top.mkintmul.counter_EN
+@22
+top.mkintmul.final_out[31:0]
+top.mkintmul.get_A_a[15:0]
+top.mkintmul.get_B_b[15:0]
+top.mkintmul.get_C_c[31:0]
+top.mkintmul.get_output[31:0]
+@28
+top.mkintmul.got_A
+top.mkintmul.got_B
+top.mkintmul.got_C
+top.mkintmul.got_result
+@22
+top.mkintmul.inp_A[15:0]
+top.mkintmul.inp_B[15:0]
+top.mkintmul.inp_C[31:0]
+@28
+top.mkintmul.mul_done
+@22
+top.mkintmul.mul_out[31:0]
+@28
+top.mkintmul.sign
+top.mkintmul.sign_A
+top.mkintmul.sign_B
+@23
+top.mkintmul.temp[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

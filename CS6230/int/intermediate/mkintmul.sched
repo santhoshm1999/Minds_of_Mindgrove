@@ -1,0 +1,53 @@
+=== Generated schedule for mkintmul ===
+
+Method schedule
+---------------
+Method: get_A
+Ready signal: True
+Conflict-free: get_B, get_C, get_output
+Sequenced before (restricted): get_A
+ 
+Method: get_B
+Ready signal: True
+Conflict-free: get_A, get_C, get_output
+Sequenced before (restricted): get_B
+ 
+Method: get_C
+Ready signal: True
+Conflict-free: get_A, get_B
+Sequenced before (restricted): get_C
+Sequenced after (restricted): get_output
+ 
+Method: get_output
+Ready signal: True
+Conflict-free: get_A, get_B, get_output
+Sequenced before (restricted): get_C
+ 
+Rule schedule
+-------------
+Rule: prep_mul
+Predicate: got_A && got_B && got_C && (! prepmul)
+Blocking rules: (none)
+ 
+Rule: multiply
+Predicate: prepmul && (! (counter == 5'd0))
+Blocking rules: (none)
+ 
+Rule: rl_mul
+Predicate: (! mul_done) && (counter == 5'd0)
+Blocking rules: (none)
+ 
+Rule: rl_add
+Predicate: mul_done && (! add_done)
+Blocking rules: (none)
+ 
+Logical execution order: get_output,
+			 multiply,
+			 rl_mul,
+			 prep_mul,
+			 get_A,
+			 get_B,
+			 rl_add,
+			 get_C
+
+========================================
