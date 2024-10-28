@@ -3,51 +3,60 @@
 Method schedule
 ---------------
 Method: get_A
-Ready signal: True
-Conflict-free: get_B, get_C, get_output
-Sequenced before (restricted): get_A
+Ready signal: (! got_A) && (! mul_done) && (! add_done) && (! got_result)
+Conflict-free: get_B, get_C, get_select, get_output
+Conflicts: get_A
  
 Method: get_B
-Ready signal: True
-Conflict-free: get_A, get_C, get_output
-Sequenced before (restricted): get_B
+Ready signal: (! got_B) && (! mul_done) && (! add_done) && (! got_result)
+Conflict-free: get_A, get_C, get_select, get_output
+Conflicts: get_B
  
 Method: get_C
-Ready signal: True
-Conflict-free: get_A, get_B
-Sequenced before (restricted): get_C
-Sequenced after (restricted): get_output
+Ready signal: (! got_C) && (! mul_done) && (! add_done) && (! got_result)
+Conflict-free: get_A, get_B, get_select, get_output
+Conflicts: get_C
+ 
+Method: get_select
+Ready signal: (! got_select) && (! mul_done) && (! add_done) && (! got_result)
+Conflict-free: get_A, get_B, get_C, get_output
+Conflicts: get_select
  
 Method: get_output
-Ready signal: True
-Conflict-free: get_A, get_B, get_output
-Sequenced before (restricted): get_C
+Ready signal: got_result
+Conflict-free: get_A, get_B, get_C, get_select, get_output
  
 Rule schedule
 -------------
-Rule: prep_mul
-Predicate: got_A && got_B && got_C && (! prepmul)
-Blocking rules: (none)
- 
-Rule: multiply
-Predicate: prepmul && (! (counter == 5'd0))
+Rule: rl_multiply
+Predicate: got_A && got_B && got_C && got_select && (! (counter == 5'd0))
 Blocking rules: (none)
  
 Rule: rl_mul
-Predicate: (! mul_done) && (counter == 5'd0)
+Predicate: (! mul_done) && (counter == 5'd0) && (! add_done) && (! got_result)
 Blocking rules: (none)
  
 Rule: rl_add
-Predicate: mul_done && (! add_done)
+Predicate: mul_done && (! add_done) && (! got_result)
 Blocking rules: (none)
  
-Logical execution order: get_output,
-			 multiply,
-			 rl_mul,
-			 prep_mul,
-			 get_A,
+Rule: rl_done
+Predicate: add_done && (! got_result)
+Blocking rules: (none)
+ 
+Rule: finished
+Predicate: got_result
+Blocking rules: (none)
+ 
+Logical execution order: get_A,
 			 get_B,
+			 get_C,
+			 get_select,
+			 get_output,
+			 rl_multiply,
+			 rl_mul,
 			 rl_add,
-			 get_C
+			 rl_done,
+			 finished
 
 ========================================
