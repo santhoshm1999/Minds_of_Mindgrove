@@ -2230,9 +2230,9 @@ def multiplier(val1, val2):
     # print(f'Multiplication result (mantissa): {man_res}')
 
     # Prepare the result in binary form
-    # print(f'SIGN_RES: {sign_res}')
-    # print(f'EXP_RES: {exp_res}')
-    # print(f'MAN_RES: {man_res}')
+    print(f'SIGN_RES: {sign_res}')
+    print(f'EXP_RES: {exp_res}')
+    print(f'MAN_RES: {man_res}')
     res_mul = f"{sign_res}{exp_res}{man_res}"
     # print(f'MULTIPLIER Result: {res_mul}')
 

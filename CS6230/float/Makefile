@@ -1,4 +1,4 @@
-TOPFILE=MAC_unpipelined.bsv
+TOPFILE=MAC_unpipelined_float.bsv
 BSVINCDIR=.:%/Libraries
 BSCDEFINES=RV64
 VERILOGDIR=verilog/

@@ -36,12 +36,12 @@ module mkUnpipelined (Ifc_MAC_unpipelined_float);
     Reg#(Bit#(1)) get_r <- mkReg(0);
 
     // Method to add two 8-bit numbers without using `+`
-    function Bit#(8) add(Bit#(8) a, Bit#(8) b);
-        Bit#(8) sum;
+    function Bit#(14) add_mantissa(Bit#(14) a, Bit#(14) b);
+        Bit#(14) sum = 14'd0;
         Bit#(1) carry = 1'd0;
         
         // Loop to perform binary addition
-        for (int i = 0; i < 8; i = i + 1) begin
+        for (Integer i = 0; i < 14; i = i + 1) begin
             // Calculate the sum bit and carry
             Bit#(1) bit_a = a[i]; // Get the ith bit of a
             Bit#(1) bit_b = b[i]; // Get the ith bit of b
@@ -52,26 +52,49 @@ module mkUnpipelined (Ifc_MAC_unpipelined_float);
         return sum; // Return the final sum
     endfunction
 
-    // Method to increment an 8-bit number without using `+`
-    function Bit#(8) increment(Bit#(8) a);
-        Bit#(8) result = a;
-        Bit#(1) carry = 1; // Start with carry of 1 to perform increment
-
-        for (int i = 0; i < 8; i = i + 1) begin
-            Bit#(1) bit_d = result[i];
-            result[i] = bit_d ^ carry; // Add carry to current bit
-            carry = bit_d & carry; // Calculate new carry
-        end
-        
-        return result; // Return the incremented result
-    endfunction
-
     function Fp32 bf16_to_fp32(Bf16 inp);
         Bit#(1) tmp_s = inp.sign;
         Bit#(8) tmp_e = inp.exp;
         Bit#(23) tmp_m = zeroExtend(inp.mantissa) << 16;
 
         return Fp32{sign:tmp_s, exp:tmp_e, mantissa:tmp_m};
+    endfunction
+
+    function Bf16 multiplication(Bf16 a, Bf16 b);
+        Bit#(1) sign_res = 0;
+        Bit#(8) exp_res = 0;
+        Bit#(7) mantissa_res = 7'd0;
+        Bit#(14) fraction_mul = 7'd0;
+        // Bit#(16) a_man = a.mantissa;
+        // Bit#(7) b_man = b.mantissa;
+        sign_res = a.sign ^ b.sign; // Sign of the result
+        
+        if ((a.exp == 0 &&  a.mantissa == 0) || (b.exp == 0 &&  b.mantissa == 0)) begin
+            // return Bf16{sign: 1'd0, exp: 8'd0, mantissa: 7'd0};
+            sign_res = 1'd0;
+            exp_res = 8'd0;
+            mantissa_res = 7'd0;
+        end
+        else if (a.exp == 8'b01111111 && a.mantissa == 0) begin
+            exp_res = b.exp;
+            mantissa_res = b.mantissa;
+            // return Bf16{sign: sign_res, exp: exp_res, mantissa: mantissa_res};
+        end
+        else if (b.exp == 8'b01111111 && b.mantissa == 0) begin
+            exp_res = a.exp;
+            mantissa_res = a.mantissa;
+            // return Bf16{sign:sign_res, exp:exp_res, mantissa:mantissa_res};
+        end
+        else begin
+            for (Integer i=0; i<7; i=i+1) begin
+                if (b.mantissa[i] == 1)begin
+                    fraction_mul = add_mantissa(fraction_mul, zeroExtend(a.mantissa << i));
+                end
+            end
+            mantissa_res = fraction_mul[31:25];
+        end
+        return Bf16{sign:sign_res, exp:exp_res, mantissa:mantissa_res};
+        
     endfunction
 
     // Rule to compute the result when both inputs are available
@@ -82,61 +105,10 @@ module mkUnpipelined (Ifc_MAC_unpipelined_float);
 		Bool return_bool = False;
 
         // Intermediate variables
-        tmp_sign <= a.sign ^ b.sign; // Sign of the result
-
-        // Handle zero case
-        if (a.exp == 0 && a.mantissa == 0) begin
-            result_mul <= Bf16{sign:b.sign, exp:b.exp, mantissa:b.mantissa};
-            got_a <= False; // Reset input flags
-            got_b <= False;
-            return_bool = True; // Exit early
-        end
-        if (b.exp == 0 && b.mantissa == 0 && ! return_bool) begin
-            result_mul <= Bf16{sign:a.sign, exp:a.exp, mantissa:a.mantissa};
-            got_a <= False; // Reset input flags
-            got_b <= False;
-            return_bool = True; // Exit early
-        end
-
-		if (!return_bool) begin
-			Bit#(8) tmp_exp = 8'd0;
-	        Bit#(7) tmp_man;
-
-			// Handle exponent addition (subtract the bias, typically 127 for float)
-			tmp_exp = add(a.exp, b.exp); // Use custom add function
-			tmp_exp = increment(tmp_exp); // Increment exponent after addition
-			tmp_exp = increment(tmp_exp); // Simulating tmp_exp - 127 by adding a negative bias
-
-			// Prepare mantissas for multiplication (add implicit leading 1 if normalized)
-			Bit#(7) mantissa_a = (a.exp == 0) ? a.mantissa : (a.mantissa | (1 << 7)); // Add leading 1 if normalized
-			Bit#(7) mantissa_b = (b.exp == 0) ? b.mantissa : (b.mantissa | (1 << 7)); // Add leading 1 if normalized
-
-			// Replacing the multiplication of mantissas with a bitwise method
-			Bit#(16) mantissa_product = 16'd0;
-			for (int i = 0; i < 7; i = i + 1) begin
-				if (mantissa_b[i] == 1) begin // Change to `1` for multiplication logic
-					mantissa_product = mantissa_product | zeroExtend(mantissa_a << i); // Shift and accumulate
-				end
-			end
-
-
-			// Normalization logic for mantissa
-			if (mantissa_product[15] == 1) begin
-				// Overflow in mantissa16
-				tmp_man = mantissa_product[14:8]; // Shift right
-				tmp_exp = increment(tmp_exp); // Increment exponent
-			end else begin
-				tmp_man = mantissa_product[13:7]; // No overflow
-			end
-
-			// Assign result
-			result_mul <= Bf16{sign: tmp_sign, exp: tmp_exp, mantissa: tmp_man[6:0]};
-            mul_done <= True;
-			
-			// Reset flags after result computation
-			got_a <= False;
-			got_b <= False;
-		end
+        result_mul <= multiplication(a, b);
+        got_a <= False; // Reset input flags
+        got_b <= False;
+        return_bool = True; // Exit early
     endrule
 
     rule get_add_res(mul_done); 
