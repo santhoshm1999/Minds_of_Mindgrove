@@ -1,4 +1,4 @@
-package MAC_unpipelined_float;
+package MAC_unpipelined_float_mul;
 
 typedef struct {
     Bit#(1) sign;
@@ -20,7 +20,7 @@ interface Ifc_MAC_unpipelined_float;
 endinterface: Ifc_MAC_unpipelined_float
 
 (* synthesize *)
-module mkUnpipelined (Ifc_MAC_unpipelined_float);
+module mkUnpipelined_float_mul (Ifc_MAC_unpipelined_float);
 
     Reg#(Bf16) a <- mkReg(Bf16{sign:1'd0, exp:8'd0, mantissa: 7'd0});
     Reg#(Bf16) b <- mkReg(Bf16{sign:1'd0, exp:8'd0, mantissa: 7'd0});
@@ -166,9 +166,10 @@ module mkUnpipelined (Ifc_MAC_unpipelined_float);
         tmp_res <= adjust_exponent(tmp_exp, tmp_mantissa);
         mantissa_done <= True;
         adj_exp_done <= True;
+        helper <= False;
     endrule
 
-    rule rl_adjust_exp_helper(got_a && got_b && !mul_done && sign_done && exp_done && mul_count == 0 && !mantissa_done && adj_exp_done && ((tmp_res[15] == 1) || (tmp_res[15:14] != 2'b01)));
+    rule rl_adjust_exp_helper(got_a && got_b && !mul_done && sign_done && exp_done && mul_count == 0 && !mantissa_done && adj_exp_done && ((tmp_res[15] == 1) || (tmp_res[15:14] != 2'b01)) && !helper);
         tmp_mantissa <= tmp_res[15:0];
         tmp_exp <= tmp_res[23:16];
         adj_exp_done <= False;
@@ -211,11 +212,10 @@ module mkUnpipelined (Ifc_MAC_unpipelined_float);
     endmethod
 
     // Method to get the result
-    // method Fp32 get_result();
     method Bf16 get_result() if(result_concatenated == True && mul_done == True);
         return result_mul;
     endmethod
 
-endmodule: mkUnpipelined
+endmodule: mkUnpipelined_float_mul
 
 endpackage
