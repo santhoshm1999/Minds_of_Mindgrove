@@ -3,13 +3,13 @@
 Method schedule
 ---------------
 Method: get_inp_a
-Ready signal: (! got_a) && (! mul_done)
+Ready signal: ! got_a
 Conflict-free: get_inp_b
 Sequenced after (restricted): get_result
 Conflicts: get_inp_a
  
 Method: get_inp_b
-Ready signal: (! got_b) && (! mul_done)
+Ready signal: ! got_b
 Conflict-free: get_inp_a, get_result
 Conflicts: get_inp_b
  

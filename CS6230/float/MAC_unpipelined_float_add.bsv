@@ -247,9 +247,15 @@ module mkUnpipelined_float_add (Ifc_MAC_unpipelined_float_add);
 		    adj_exp_done <= True;
 	    end
 	    else begin
-		    // adding 2's compliment of 1 with exponent to reduce it by 1
-		    tmp_exp <= add_exponents(tmp_exp, 8'b11111111);
-		    temp_man <= temp_man << 1;
+			if(temp_man[49] == 1'b1) begin
+				tmp_exp <= add_exponents(tmp_exp, 8'b1);
+				temp_man <= temp_man >> 1;
+			end
+			else begin
+				// adding 2's compliment of 1 with exponent to reduce it by 1
+				tmp_exp <= add_exponents(tmp_exp, 8'b11111111);
+				temp_man <= temp_man << 1;
+			end
 	    end
     endrule
 

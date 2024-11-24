@@ -28,7 +28,6 @@ module mkUnpipelined_float_mul (Ifc_MAC_unpipelined_float_mul);
     Reg#(Bf16) result_mul <- mkReg(Bf16{sign:1'd0, exp:8'd0, mantissa: 7'd0});
     Reg#(Bit#(1)) tmp_sign <- mkReg(1'd0);
     Reg#(Bit#(8)) tmp_exp <- mkReg(8'd0);
-    Reg#(Bit#(16)) tmp_mantissa <- mkReg(16'd0);
     Reg#(Bit#(16)) tmp_a <- mkReg(16'd0);
     Reg#(Bit#(8)) tmp_a_a <- mkReg(8'd0);
     Reg#(Bit#(8)) tmp_b <- mkReg(8'd0);
@@ -224,7 +223,7 @@ module mkUnpipelined_float_mul (Ifc_MAC_unpipelined_float_mul);
 
 
     // Method to set input A
-    method Action get_inp_a(Bit#(16) inp_A) if(!got_a && !mul_done);
+    method Action get_inp_a(Bit#(16) inp_A) if(!got_a);
         a <= Bf16{sign:inp_A[15], exp:inp_A[14:7], mantissa:inp_A[6:0]};
         got_a <= True;
 	pack_done <= False;
@@ -232,7 +231,7 @@ module mkUnpipelined_float_mul (Ifc_MAC_unpipelined_float_mul);
     endmethod
 
     // Method to set input B
-    method Action get_inp_b(Bit#(16) inp_B) if(!got_b && !mul_done);
+    method Action get_inp_b(Bit#(16) inp_B) if(!got_b);
         b <= Bf16{sign:inp_B[15], exp:inp_B[14:7], mantissa:inp_B[6:0]};
         got_b <= True;
 	mul_start <= False;
