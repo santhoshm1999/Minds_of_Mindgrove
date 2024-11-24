@@ -1,0 +1,74 @@
+=== Generated schedule for mkUnpipelined_float_mul ===
+
+Method schedule
+---------------
+Method: get_inp_a
+Ready signal: (! got_a) && (! mul_done)
+Conflict-free: get_inp_b
+Sequenced after (restricted): get_result
+Conflicts: get_inp_a
+ 
+Method: get_inp_b
+Ready signal: (! got_b) && (! mul_done)
+Conflict-free: get_inp_a, get_result
+Conflicts: get_inp_b
+ 
+Method: get_result
+Ready signal: pack_done
+Conflict-free: get_inp_b, get_result
+Sequenced before (restricted): get_inp_a
+ 
+Rule schedule
+-------------
+Rule: rl_get_sign
+Predicate: got_a && got_b && (! mul_done) && (! sign_done)
+Blocking rules: (none)
+ 
+Rule: rl_add_exp
+Predicate: got_a && got_b && (! mul_done) && sign_done && (! exp_done) &&
+	   (mul_count == 4'd0) &&
+	   (! handle_zero)
+Blocking rules: (none)
+ 
+Rule: rl_mul_mantissa
+Predicate: got_a && got_b && (! mul_done) && sign_done && exp_done &&
+	   (! (mul_count == 4'd0)) &&
+	   (! handle_zero)
+Blocking rules: (none)
+ 
+Rule: rl_round_mantissa
+Predicate: got_a && got_b && (! mul_done) && sign_done && exp_done &&
+	   (mul_count == 4'd0) &&
+	   (! mantissa_done) &&
+	   (! handle_zero)
+Blocking rules: (none)
+ 
+Rule: rl_handling_zero
+Predicate: handle_zero
+Blocking rules: (none)
+ 
+Rule: rl_get_mul_res
+Predicate: got_a && got_b && (! mul_done) && mantissa_done && (! handle_zero)
+Blocking rules: rl_get_sign
+ 
+Rule: rl_pack_res
+Predicate: result_concatenated
+Blocking rules: (none)
+ 
+Rule: reset_signals
+Predicate: pack_done
+Blocking rules: rl_pack_res, get_inp_a
+ 
+Logical execution order: get_inp_b,
+			 get_result,
+			 rl_add_exp,
+			 rl_mul_mantissa,
+			 rl_round_mantissa,
+			 rl_pack_res,
+			 get_inp_a,
+			 rl_handling_zero,
+			 rl_get_sign,
+			 rl_get_mul_res,
+			 reset_signals
+
+=======================================================

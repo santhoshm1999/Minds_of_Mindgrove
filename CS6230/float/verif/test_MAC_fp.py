@@ -1,7 +1,8 @@
 import cocotb
-from cocotb.clock import Clock
+from cocotb.clock import Clock, Timer
 from cocotb.triggers import RisingEdge, ClockCycles
 import logging as _log
+from cocotb.regression import TestFactory
 
 import math
 import struct
@@ -9,23 +10,28 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', help='Debug flag', action='store_true')
+parser.add_argument('--full', help='Debug flag', action='store_true')
 args = parser.parse_args()
 
 
-file1 = open('../test_cases/A_binary.txt')
+file1 = open('test_cases/A_binary.txt')
 a = file1.readlines()
 file1.close()
 
-file1 = open('../test_cases/B_binary.txt')
+file1 = open('test_cases/B_binary.txt')
 b = file1.readlines()
 file1.close()
 
-file1 = open('../test_cases/C_binary.txt')
+file1 = open('test_cases/C_binary.txt')
 c = file1.readlines()
 file1.close()
 
-file1 = open('../test_cases/MAC_binary.txt')
+file1 = open('test_cases/MAC_binary.txt')
 ref_ans = file1.readlines()
+file1.close()
+
+file1 = open('test_cases/combined_AB_binary.txt')
+ref_mul = file1.readlines()
 file1.close()
 
 
@@ -48,9 +54,21 @@ async def reset(dut):
     dut.RST_N.value=1
     await RisingEdge(dut.CLK)
 
+def compliment(val):
+    tmp = ''
+    len_val = len(val)
+    for i in range(len_val):
+        if val[i] == '0':
+            tmp += '1'
+        else:
+            tmp += '0'
+    debug_print(f'(compliment) {tmp}')
+    tmp_val = addition(tmp,'1')
+    debug_print(f'(compliment) {tmp_val}')
+
 def rounding(val, bit_length):
     val = val.ljust(bit_length+2, '0')
-    debug_print(f'(rounding) ROUNDING Value: {val} and bit length {bit_length}  and len of bitlength {len(val)}')
+    debug_print(f'(rounding) ROUNDING Value: {val} and bit length {bit_length}  and len of val {len(val)}')
     if len(val) == bit_length:
         return val
     elif len(val) < bit_length:
@@ -124,20 +142,20 @@ def addition(a, b):
     return carry+res
 
 def multiplication(man_a, man_b):
-    dec_point = 0
+    
     debug_print(f'(multiplication) MAN_A: {man_a}')
     debug_print(f'(multiplication) MAN_B: {man_b}')
     if float(man_a) == 0.0 or float(man_b) == 0.0:
         result = '0'
     else:
-        if (float(man_a) > 1): 
-            dec_point += 1
-        if (float(man_b) > 1): 
-            dec_point += 1
-        debug_print(f'(multiplication) DEC_POINT:{dec_point}')
-
-        a = int((man_a[0]+man_a[2:]).rstrip('0'),2)
-        b = int((man_b[0]+man_b[2:]).rstrip('0'),2)
+        if man_a[1] == '.':
+            a = int((man_a[0]+man_a[2:]),2)
+        else:
+            a = int(man_a,2)
+        if man_b[1] == '.':
+            b = int((man_b[0]+man_b[2:]),2)
+        else:
+            b = int(man_b,2)
 
         result = 0
         if a == 1:
@@ -148,15 +166,24 @@ def multiplication(man_a, man_b):
             while b > 0:
                 if b & 1:
                     result_bin = bin(result).replace("0b","")
+                    debug_print(f'(multiplication) res: {result_bin}')
                     a_bin = bin(a).replace("0b","")
-                    result = int(addition(result_bin, a_bin),2)
-                debug_print(f'(multiplication) RESULT: {result}')
+                    debug_print(f'(multiplication) a: {a_bin}')
+                    result = addition(result_bin, a_bin)
+                    debug_print(f'(multiplication) len_of_res: {len(result)}')
+                    result = int(result,2)
+                debug_print(f'(multiplication) RESULT in loop: {bin(result).replace('0b','')}')
                 a <<= 1
                 b >>= 1
-        debug_print(f'(multiplication) RESULT_BEFORE: {result}')
-        result = bin(result).replace("0b","")
+        debug_print(f'(multiplication) RESULT BEFORE BIN: {result}')
+        result = bin(result).replace("0b","").rjust(16, '0')
         # bin_place = result.index('.')
-    result = result[:dec_point] + '.' + result[dec_point:]
+    debug_print(f'(multiplication) RESULT_BEFORE: {result}')
+    result = result[:-15] + '.'+ result[-15:]
+    # if (len(result) > 16 and result[0] == 1):
+    # else:
+    #     result = result[:1] + '.' + result[1:]
+    # result = result[:dec_point] + '.' + result[dec_point:]
     debug_print(f'(multiplication) RESULT_AFTER: {result}')
     return result
 
@@ -231,12 +258,12 @@ def multiplier(val1, val2):
     debug_print(f'(multiplier) (a_mantissa): {a_mantissa}')
     debug_print(f'(multiplier) (b_mantissa): {b_mantissa}')
     implicit_a = '0' if (val1 == 0.0) else '1' 
-    implicit_b = '0' if (val2 == 0.0) else '1' 
-    bin_a_man = f'{implicit_a}.{bin(a_mantissa).replace("0b","").zfill(7).rstrip('0')}'
-    bin_b_man = f'{implicit_b}.{bin(b_mantissa).replace("0b","").zfill(7).rstrip('0')}'
+    implicit_b = '0' if (val2 == 0.0) else '1'
+    bin_a_man = f'{implicit_a}.{bin(a_mantissa).replace("0b","").zfill(7)}'
+    bin_b_man = f'{implicit_b}.{bin(b_mantissa).replace("0b","").zfill(7)}'
     debug_print(f'(multiplier) Binary format (a_mantissa): {bin_a_man}')
     debug_print(f'(multiplier) Binary format (b_mantissa): {bin_b_man}')
-    man_res = multiplication(bin_a_man.rstrip('0'), bin_b_man.rstrip('0'))
+    man_res = multiplication(bin_a_man, bin_b_man)
     debug_print(f'(multiplier) Multiplication result (mantissa): {man_res}')
     if exp >=0 :
         if man_res[1] != '.':
@@ -438,7 +465,7 @@ def dec_2_ieee(num, num_len=7):
     return ieee
 
 
-def MAC(val1, val2, val3, ref_val):
+def MAC(val1, val2, val3, ref_val, ref_mul):
     # val1 = dec_2_ieee(val1, 7)
     # assert val1[:17] == '0011111100000000', f'{val1[:17]} not equal to 0100000001100000'
     # exit(1)
@@ -462,7 +489,15 @@ def MAC(val1, val2, val3, ref_val):
     # res_mul = dec_2_ieee(res_mul)
     print('******************')
     print(f'MULTIPLY_RESULT: {res_mul}')
-    # assert res_mul == '0110010011100000', f'Actual: 0110010011100000  Got: {res_mul}'
+    if not args.full:
+        assert res_mul == ref_mul, f'Actual: {ref_mul} Got: {res_mul}'
+    else:
+        if (res_mul == ref_mul):
+            print('MUL_PASS')
+        else:
+            print(f'ref_mul: {ref_mul}    res_mul: {res_mul}')
+            print('MUL_FAIL')
+
     debug_print(f'(MAC) *************************************MULTIPLICATION DONE************************************************************')
     debug_print(f'(MAC) ***************************************ADDITION STARTED*************************************************************')
     # res_mul = '0110010011100000'
@@ -470,57 +505,89 @@ def MAC(val1, val2, val3, ref_val):
     print(f'ADD RESULT: {res_add}')
     print('******************')
     print(f'REFERNCE value: {ref_val}')
-    # assert ref_val == res_add,f'{ref_val} != {res_add}'
-    if (ref_val == res_add):
-        print('PASS')
+
+    if not args.full:
+        assert ref_val == res_add,f'{ref_val} != {res_add}'
     else:
-        print(f'ref_val: {ref_val}    res_add: {res_add}')
-    # exit(1)
+        if (ref_val == res_add):
+            print('ADD_PASS')
+        else:
+            print(f'ref_val: {ref_val}    res_add: {res_add}')
+            print('ADD_FAIL')
 
 
-for i in range(0, len(a)):
-    print(f'****************************************  {i}  ****************************************')
-    ref_a = a[i][:-1]
-    ref_b = b[i][:-1]
-    ref_c = c[i][:-1]
-    ref_ans_bin = ref_ans[i][:-1]
-    # a_val = bin(a[i]).replace("0b","").ljust(16, '0')
-    # b_val = bin(b[i]).replace("0b","").ljust(16, '0')
-    # c_val = bin(c[i]).replace("0b","").ljust(32, '0')
-    # ref_val = bin(ref_ans[i]).replace("0b","")
-    # mul(a[i],b[i],c[i], ref_ans[i])
-    # MAC(bin(a[i]),bin(b[i]),bin(c[i]))
-    # MAC(10.75,7868380086272.0,25.345001220703125)
-    # MAC(340282346600000000000000000000000000000,2.0,2.0)
-    # MAC(100.5,2.0,2.0)
-    MAC(ref_a,ref_b,ref_c, ref_ans_bin)
-
-
-'''
-
-
-
-
-@cocotb.test()
-async def test_1(dut):
+async def test_1(dut, i):
     clock = Clock(dut.CLK, 10, units="us")  
     cocotb.start_soon(clock.start(start_high=False))
     await reset(dut)
-    dut.get_inp_a_inp_A.value = 0b0100000000100000
-    dut.EN_get_inp_a.value = 1
-    dut.get_inp_b_inp_b.value = 0b0100000001100000
-    dut.EN_get_inp_b.value = 1
-    await RisingEdge(dut.CLK)
-    await RisingEdge(dut.CLK)
-    await RisingEdge(dut.CLK)
-    # for _ in range(10):
-    #     await RisingEdge(dut.CLK)
+
     while True:
-        if dut.get_r.value == 1:
-            dut._log.info(f"Res: {dut.get_result.value}")
-            # mul(str(dut.get_result.value))
+        if(dut.RDY_get_start.value == 1):
+            dut.get_start_start.value = 1
+            dut.EN_get_start.value = 1
+            dut._log.info("MAC started")            
+            break
+        await RisingEdge(dut.CLK)
+    a_val = int(a[i][:-1],2)
+    b_val = int(b[i][:-1],2)
+    c_val = int(c[i][:-1],2)
+    dut._log.info(f"a_val: {bin(a_val).replace('0b','').rjust(16,'0')}")
+    dut._log.info(f"b_val: {bin(b_val).replace('0b','').rjust(16,'0')}")
+    dut._log.info(f"c_val: {bin(c_val).replace('0b','').rjust(16,'0')}")
+
+    while True:
+        if (dut.RDY_get_input_a.value == 1):
+            dut.get_input_a_a.value = a_val
+            dut.EN_get_input_a.value = 1
             break
         await RisingEdge(dut.CLK)
 
+    while True:
+        if (dut.RDY_get_input_b.value == 1):
+            dut.get_input_b_b.value = b_val
+            dut.EN_get_input_b.value = 1
+            break
+        await RisingEdge(dut.CLK)
 
-'''
+    while True:
+        if (dut.RDY_get_input_c.value == 1):
+            dut.get_input_c_c.value = c_val
+            dut.EN_get_input_c.value = 1
+            break
+        await RisingEdge(dut.CLK)
+
+    ref_ans_val = ref_ans[i][:-1]
+    ref_ans_sign = ref_ans_val[0]
+    ref_ans_exp = ref_ans_val[1:9]
+    ref_ans_man = ref_ans_val[9:]
+
+    while True:
+        if dut.RDY_get_input_s.value == 1:
+            dut.EN_get_input_s.value = 1
+            break
+        await RisingEdge(dut.CLK)
+    
+    while True:
+        if dut.RDY_get_MAC_result.value == 1:
+            await RisingEdge(dut.CLK)
+            final_res = str(dut.get_MAC_result.value)
+            dut._log.info(f"MAC Res: {final_res}")
+            break
+        await RisingEdge(dut.CLK)
+
+    assert final_res[0] == ref_ans_sign,f'sign not matched Got: {final_res[0]} Actual: {ref_ans_sign}    i = {i}'
+    assert final_res[9:] == ref_ans_man,f'mantissa not matched Got: {final_res[9:]} Actual: {ref_ans_man}    i = {i}'
+    assert final_res[1:9] == ref_ans_exp,f'exp not matched Got: {final_res[1:9]} Actual: {ref_ans_exp}    i = {i}'
+    assert final_res == ref_ans_val,f'Got: {final_res} Actual: {ref_ans_val}    i = {i}'
+
+    while True:
+        if (dut.get_stop.value == 0):
+            break
+        await RisingEdge(dut.CLK)
+    dut._log.info("MAC float Completed")
+
+
+
+Tf = TestFactory(test_1)
+Tf.add_option(name = "i",optionlist = list(range(2)))
+Tf.generate_tests()

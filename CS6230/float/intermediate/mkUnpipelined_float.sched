@@ -1,0 +1,96 @@
+=== Generated schedule for mkUnpipelined_float ===
+
+Method schedule
+---------------
+Method: get_start
+Ready signal: ! got_rg_start
+Conflict-free: get_input_s, get_MAC_result
+Sequenced after: get_input_a, get_input_b, get_input_c, get_stop
+Conflicts: get_start
+ 
+Method: get_input_a
+Ready signal: rg_start && (! got_rg_a)
+Conflict-free: get_input_b, get_input_s, get_input_c, get_MAC_result, get_stop
+Sequenced before: get_start
+Conflicts: get_input_a
+ 
+Method: get_input_b
+Ready signal: rg_start && (! got_rg_b)
+Conflict-free: get_input_a, get_input_s, get_input_c, get_MAC_result, get_stop
+Sequenced before: get_start
+Conflicts: get_input_b
+ 
+Method: get_input_s
+Ready signal: True
+Conflict-free: get_start,
+	       get_input_a,
+	       get_input_b,
+	       get_input_s,
+	       get_input_c,
+	       get_MAC_result,
+	       get_stop
+ 
+Method: get_input_c
+Ready signal: rg_start && (! got_rg_c)
+Conflict-free: get_input_a, get_input_b, get_input_s, get_MAC_result, get_stop
+Sequenced before: get_start
+Conflicts: get_input_c
+ 
+Method: get_MAC_result
+Ready signal: add_done
+Conflict-free: get_start,
+	       get_input_a,
+	       get_input_b,
+	       get_input_s,
+	       get_input_c,
+	       get_MAC_result,
+	       get_stop
+ 
+Method: get_stop
+Ready signal: True
+Conflict-free: get_input_a,
+	       get_input_b,
+	       get_input_s,
+	       get_input_c,
+	       get_MAC_result,
+	       get_stop
+Sequenced before: get_start
+ 
+Rule schedule
+-------------
+Rule: rl_put_mul_val
+Predicate: mul.RDY_get_inp_b && mul.RDY_get_inp_a &&
+	   got_rg_a && got_rg_b && (! mul_started)
+Blocking rules: (none)
+ 
+Rule: get_mul_result
+Predicate: mul.RDY_get_result && mul_started && (! mul_done)
+Blocking rules: (none)
+ 
+Rule: rl_put_add_val
+Predicate: add.RDY_get_inp_s && add.RDY_get_inp_c &&
+	   got_rg_s && got_rg_c && mul_done && (! add_started)
+Blocking rules: (none)
+ 
+Rule: rl_get_add_result
+Predicate: add.RDY_get_result && add_started && (! add_done)
+Blocking rules: (none)
+ 
+Rule: rl_deassert_signals
+Predicate: add_done
+Blocking rules: (none)
+ 
+Logical execution order: get_input_a,
+			 get_input_b,
+			 get_input_s,
+			 get_input_c,
+			 get_MAC_result,
+			 get_stop,
+			 get_start,
+			 get_mul_result,
+			 rl_put_mul_val,
+			 rl_put_add_val,
+			 rl_get_add_result,
+			 rl_deassert_signals
+
+===================================================

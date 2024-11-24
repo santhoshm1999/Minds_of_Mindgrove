@@ -14,213 +14,314 @@ typedef struct {
 } Fp32 deriving (Bits, Eq);
 
 interface Ifc_MAC_unpipelined_float_add;
-    method Action get_inp_s(Bit#(32) inp_S);
-    method Action get_inp_c(Bit#(32) inp_C);
-    method Bf16 get_result(); // Method to retrieve the result
+	// method Action add_start(Bool start);
+	method Action get_inp_s(Bit#(32) inp_S);
+	method Action get_inp_c(Bit#(32) inp_C);
+	method Bit#(32) get_result(); // Method to retrieve the result
 endinterface: Ifc_MAC_unpipelined_float_add
 
 (* synthesize *)
 module mkUnpipelined_float_add (Ifc_MAC_unpipelined_float_add);
 
-    Reg#(Fp32) s <- mkReg(Bf16{sign:1'd0, exp:8'd0, mantissa: 23'd0});
-    Reg#(Fp32) c <- mkReg(Bf16{sign:1'd0, exp:8'd0, mantissa: 23'd0});
-    Reg#(Fp32) result_add <- mkReg(Fp32{sign:1'd0, exp:8'd0, mantissa: 23'd0});
+    Reg#(Fp32) s <- mkReg(Fp32{sign:1'd0, exp:8'd0, mantissa: 23'd0});
+    Reg#(Fp32) c <- mkReg(Fp32{sign:1'd0, exp:8'd0, mantissa: 23'd0});
+    Reg#(Bit#(32)) end_result <- mkReg(0);
     Reg#(Bit#(1)) tmp_sign <- mkReg(1'd0);
     Reg#(Bit#(8)) tmp_exp <- mkReg(8'd0);
-    Reg#(Bit#(16)) tmp_mantissa <- mkReg(16'd0);
-    Reg#(Bit#(8)) tmp_a <- mkReg(8'd0);
-    Reg#(Bit#(8)) tmp_b <- mkReg(8'd0);
-    Reg#(Bit#(4)) mul_count <- mkReg(4'd0);
+    Reg#(Bool) addition_start <- mkReg(False);
     Reg#(Bool) got_s <- mkReg(False);
     Reg#(Bool) got_c <- mkReg(False);
+    Reg#(Bool) handle_zero <- mkReg(False);
+    Reg#(Bool) input_zero <- mkReg(False);
+    Reg#(Bit#(1)) input_no <- mkReg(1'b0);
     Reg#(Bool) swap_done <- mkReg(False);
     Reg#(Bool) sign_done <- mkReg(False);
-    Reg#(Bool) exp_done <- mkReg(False);
+    Reg#(Bool) cmp_exp_done <- mkReg(False);
     Reg#(Bool) mantissa_done <- mkReg(False);
     Reg#(Bool) adj_exp_done <- mkReg(False);
-    Reg#(Bool) round_done <- mkReg(False);
-    Reg#(Bool) helper <- mkReg(False);
-    Reg#(Bool) mul_done <- mkReg(False);
+    Reg#(Bool) align_man_done <- mkReg(False);
+    Reg#(Bool) calc_fraction_done <- mkReg(False);
+    Reg#(Bool) add_done <- mkReg(False);
     Reg#(Bool) result_concatenated <- mkReg(False);
+    Reg#(Bool) pack_done <- mkReg(False);
+    Reg#(Bit#(8)) exp_diff <- mkReg(8'd0);
     Reg#(Bit#(1)) get_r <- mkReg(0);
-    Reg#(Bit#(7)) mantissa_res <- mkReg(7'd0);
+    Reg#(Bit#(23)) mantissa_res <- mkReg(23'd0);
     Reg#(Bit#(24)) tmp_res <- mkReg(24'd0);
     Reg#(Bit#(8)) exp_res <- mkReg(8'd0);
+    Reg#(Bit#(50)) temp_s <- mkReg(50'd0);
+    Reg#(Bit#(50)) temp_c <- mkReg(50'd0);
+    Reg#(Bit#(50)) temp_man <- mkReg(50'd0);
+    Reg#(Bit#(2)) add_or_sub <- mkReg(2'b00);
+    Reg#(Bit#(31)) exp_mantissa <- mkReg(31'd0);
+
+    function Bit#(8) twos_compliment(Bit#(8) a);
+	    Bit#(8) new_a = 8'd0;
+	    Bit#(8) out = 8'd0;
+	    Bit#(8) b = 8'd1;
+	    Bit#(1) carry = 1'b0;
+	    for(Integer i = 0; i < 8; i = i + 1) begin
+		    if(a[i] == 0) begin
+			    new_a[i] = 1;
+		    end
+		    else begin
+			    new_a[i] = 0;
+		    end
+	    end
+	    for(Integer i = 0; i < 8; i = i + 1) begin
+		    out[i] = new_a[i] ^ b[i] ^ carry;
+		    carry = (new_a[i] & b[i]) | (new_a[i] ^ b[i]) & carry;
+	    end
+	    return out;
+    endfunction:twos_compliment
+
+    function Bit#(50) add_mantissa(Bit#(50) a, Bit#(50) b);
+	    Bit#(1) carry = 1'b0;
+	    Bit#(50) out = 50'd0;
+	    out[0] = a[0] ^ b[0];
+	    carry = a[0] & b[0];
+	    for(Integer i = 1; i < 50; i = i + 1) begin
+		    out[i] = a[i] ^ b[i] ^ carry;
+		    carry = (a[i] & b[i]) | (a[i] ^ b[i]) & carry;
+	    end
+	    return out;
+
+    endfunction:add_mantissa
+
+    function Bit#(50) sub_mantissa(Bit#(50) a, Bit#(50) b);
+	    Bit#(1) carry = 1'b0;
+	    Bit#(50) out = 50'd0;
+	    Bit#(50) new_b = add_mantissa((b ^ 1), 1);
+	    out[0] = a[0] ^ new_b[0];
+	    carry = a[0] & new_b[0];
+	    for(Integer i = 1; i < 50; i = i + 1) begin
+		    out[i] = a[i] ^ new_b[i] ^ carry;
+		    carry = (a[i] & new_b[i]) | (a[i] ^ new_b[i]) & carry;
+	    end
+	    return out;
+
+    endfunction:sub_mantissa
+
+
 
     function Bit#(8) add_exponents(Bit#(8) exp_a, Bit#(8) exp_b);
-	Bit#(8) outp_inter = 8'b0;
-	Bit#(8) outp = 8'b0;
-	Bit#(8) bias = 8'd127;
+	Bit#(8) out = 8'd0;
 	Bit#(1) carry = 1'b0;
-	outp_inter[0] = exp_a[0] ^ exp_b[0];
-	carry = exp_a[0] & exp_b[0];
-	for(Integer i = 1; i < 8; i = i + 1)
-	begin
-		outp_inter[i] = exp_a[i] ^ exp_b[i] ^ carry;
-		carry = (exp_a[i] & exp_b[i]) | (exp_a[i] ^ exp_b[i]) & carry;
-	end
-	
-	carry = 1'b0;
-	outp[0] = outp_inter[0] ^ bias[0];
-	carry = outp_inter[0] & bias[0];
-	for(Integer i = 1; i < 8; i = i + 1)
-	begin
-		outp[i] = outp_inter[i] ^ bias[i] ^ carry;
-		carry = (outp_inter[i] & bias[i]) | (outp_inter[i] ^ bias[i]) & carry;
-	end
 
-	return outp;
+	out[0] = exp_a[0] ^ exp_b[0];
+	carry = exp_a[0] & exp_b[0];
+	
+	for(Integer i = 1; i < 8; i = i + 1) begin
+		out[i] = exp_a[i] ^ exp_b[i] ^ carry;
+		carry = (exp_a[i] & exp_b[i]) | (exp_a[i] ^ exp_b[i]) & carry;
+	end	
+	return out;
     endfunction:add_exponents
 
-    // Method to add two 8-bit numbers without using `+`
-    function Bit#(16) addition(Bit#(16) val_a, Bit#(16) val_b);
-        Bit#(16) sum = 16'd0;
-        Bit#(1) carry = 1'd0;
-        
-        // Loop to perform binary addition
-        for (Integer i = 0; i < 14; i = i + 1) begin
-            // Calculate the sum bit and carry
-            Bit#(1) bit_a = val_a[i]; // Get the ith bit of a
-            Bit#(1) bit_b = val_b[i]; // Get the ith bit of b
-            sum[i] = bit_a ^ bit_b ^ carry; // Sum of the bits with carry
-            carry = (bit_a & bit_b) | (carry & (bit_a ^ bit_b)); // Calculate carry
-        end
 
-        return sum; // Return the final sum
-    endfunction:addition
+    function Bit#(31) rounding_mantissa(Bit#(50) val, Bit#(8) exp);
+	    Bit#(23) rounded_mantissa = 23'd0;
+	    Bit#(1) round_bit = 1'd0;
+	    Bit#(50) temp = 50'd0;
 
-    function Bit#(7) rounding_mul_mantissa(Bit#(15) val1);
-        Bit#(7) rounded_mantissa = 7'd0;
-        if (val1[8] == 1'd0) begin
-            rounded_mantissa = val1[14:8];
+	    if (val[49] == 1'b1) begin
+		    exp = add_exponents(exp, 8'd1);
+		    round_bit = val[25];
+		    if (round_bit == 1'd0) begin
+			    rounded_mantissa = val[48:26];
+		    end
+		    else begin
+			    if (val[24:0] == 25'd0 && val[26] == 1'd0) begin
+				    rounded_mantissa = val[48:26];
+			    end
+			    else begin
+				    temp = add_mantissa(zeroExtend(val[49:26]), 50'b1);
+				    if(temp[24] == 1'd1) begin
+					    exp = add_exponents(exp, 8'b1);
+					    rounded_mantissa = temp[23:1];
+				    end
+				    else begin
+					    rounded_mantissa = temp[22:0];
+				    end
+			    end
+		    end
+	    end
+	    else begin
+		    round_bit = val[24];
+		    if (round_bit == 1'd0) begin
+			    rounded_mantissa = val[47:25];
+		    end
+		    else begin
+			    if (val[23:0] == 24'd0 && val[25] == 1'd0) begin
+				    rounded_mantissa = val[47:25];
+			    end
+			    else begin
+				    temp = add_mantissa(zeroExtend(val[49:25]), 50'd1);
+				    if (temp[24] == 1) begin
+					    exp = add_exponents(exp, 8'd1);
+					    rounded_mantissa = temp[23:1];
+				    end
+				    else begin
+					    rounded_mantissa = temp[22:0];
+				    end
+			    end
+		    end
+	    end
+	    return {exp, rounded_mantissa};
+
+    endfunction:rounding_mantissa
+
+
+    rule rl_swap(got_s && got_c && !swap_done && !handle_zero && !input_zero);
+	if ((s.exp == 0 && s.mantissa == 0 && c.exp == 0 && c.mantissa == 0) || ((s.exp == c.exp) && (s.mantissa == c.mantissa) && (s.sign != c.sign))) begin
+            handle_zero <= True;
+     	end
+     	else if (s.exp == 0 && s.mantissa == 0)  begin
+	    input_zero <= True;
+	    input_no <= 0;
+	end
+        else if(c.exp == 0 && c.mantissa == 0) begin
+            input_zero <= True;
+     	    input_no <= 1;
         end
         else begin
-            // TODO: Check the condition and return below
-            if (val1[9] != 1'd0 && val1[7:0] == 8'd0) begin
-                rounded_mantissa = val1[14:8];
+            if (s.exp < c.exp) begin
+                s <= c;
+                c <= s;
             end
-            else begin
-                Bit#(16) temp = addition(zeroExtend(val1[14:8]), 16'd1);
-                rounded_mantissa = temp[6:0];
-            end
-        end
-        return rounded_mantissa;
-    endfunction:rounding_mul_mantissa
-
-    function Bit#(24) adjust_exponent(Bit#(8) exp, Bit#(16) mantissa);
-        Bit#(16) fraction_mul = 16'd0;
-        Bit#(16) adjusted_fraction = 16'd0;
-        Bit#(8) exp_res_adj = 8'd0;
-        // Bit#(16) a_man = a.mantissa;
-        // Bit#(7) b_man = b.mantissa;
-
-        if (mantissa[15] == 1'd1) begin
-            Bit#(16) temp = addition(zeroExtend(exp_res_adj), 16'd1);
-            exp_res_adj = temp[7:0];
-            adjusted_fraction = mantissa;
-        end
-        else begin
-            // while((mantissa[15] == 1'd0) && (mantissa[14] != 1'd1)) begin
-                mantissa = mantissa << 1'd1;
-                mantissa = mantissa & 16'hff;
-                exp_res_adj = exp_res_adj - 1;
-            // end
-            adjusted_fraction = mantissa;
-        end
-        // mantissa_res = rounding_mul_mantissa(adjusted_fraction);
-        return {exp_res_adj, adjusted_fraction};
-        
-    endfunction:adjust_exponent
-
-    rule rl_swap(got_s && got_c && !swap_done);
-        if (s.exp < c.exp) begin
-            s <= c;
-            c <= s;
+	    else if(s.exp == c.exp) begin
+	        if(s.mantissa < c.mantissa) begin
+	            s <= c;
+	    	c <= s;
+	        end
+	    end
         end
         swap_done <= True;
     endrule
 
-    rule rl_get_sign(got_s && got_c && swap_done && !mul_done && !sign_done);
+    rule rl_get_sign(got_s && got_c && swap_done && !add_done && !sign_done && !handle_zero && !input_zero);
+	$display($stime, " After Swapping s: %b c: %b", s, c);
         tmp_sign <= s.sign ;
+	tmp_exp <= s.exp;
         sign_done <= True;
     endrule
 
-    rule rl_add_exp(got_s && got_c && swap_done && !mul_done && sign_done && !exp_done && mul_count == 4'd0);
-        tmp_exp <= s.exp;
-        if(c.exp != tmp_exp) begin
-            c.exp <= tmp_exp;
-        end
-        // TODO: Start from here
-        tmp_exp <= add_exponents(a.exp, b.exp);
-        tmp_a <= {1,a.mantissa};
-        tmp_b <= {1,b.mantissa};
-        exp_done <= True;
-        mul_count <= 8;
+    rule rl_cmp_exp(got_s && got_c && swap_done && sign_done && !cmp_exp_done && !add_done &&  !(handle_zero || input_zero));
+	    exp_diff <= add_exponents(tmp_exp, twos_compliment(c.exp));
+	    temp_s <= {2'b01, s.mantissa, 25'd0};
+	    temp_c <= {2'b01, c.mantissa, 25'd0};
+	    cmp_exp_done <= True;
     endrule
 
-    rule rl_mul_mantissa(got_s && got_c && !mul_done && sign_done && exp_done && mul_count != 0);
-        if (tmp_b[0] == 1) begin
-            tmp_mantissa <= addition(zeroExtend(tmp_a), tmp_mantissa);
-        end
-        tmp_a <= tmp_a << 1;
-        tmp_b <= tmp_b >> 1;
-        mul_count <= mul_count - 1; 
+    rule rl_align_exp(got_s && got_c && swap_done && sign_done && cmp_exp_done && !align_man_done && !add_done && !(handle_zero || input_zero));
+	    $display($stime, "i s_mantissa new %b", temp_s);
+	    $display($stime, "i c_mantissa new %b", temp_c);
+	    $display($stime, "i Exponent difference %d", exp_diff);
+	    temp_c <= temp_c >> exp_diff;
+	    if(s.sign == c.sign) begin
+		    add_or_sub <= 1;
+	    end
+	    else begin
+		    add_or_sub <= 2;
+	    end
+	    align_man_done <= True;
     endrule
 
-    rule rl_adjust_exp(got_s && got_c && !mul_done && sign_done && exp_done && mul_count == 0 && !mantissa_done && !adj_exp_done);
-        tmp_res <= adjust_exponent(tmp_exp, tmp_mantissa);
-        mantissa_done <= True;
-        adj_exp_done <= True;
-        helper <= False;
+    rule rl_add_or_sub_exp(got_s && got_c && swap_done && sign_done && cmp_exp_done && align_man_done && !calc_fraction_done && !add_done && !(handle_zero || input_zero));
+	    $display($stime, " shifted mantissa of c %b", temp_c);
+	    if (add_or_sub == 1) begin
+		    temp_man <= add_mantissa(temp_s , temp_c);
+	    $display($stime, " Adding the mantissa");
+	    end
+	    else if(add_or_sub == 2) begin
+		    temp_man <= sub_mantissa(temp_s, temp_c);
+	    $display($stime, " Subtracting the mantissa");
+	    end
+	    add_or_sub <= 0;
+	    calc_fraction_done <= True;
     endrule
 
-    rule rl_adjust_exp_helper(got_s && got_c && !mul_done && sign_done && exp_done && mul_count == 0 && !mantissa_done && adj_exp_done && ((tmp_res[15] == 1) || (tmp_res[15:14] != 2'b01)) && !helper);
-        tmp_mantissa <= tmp_res[15:0];
-        tmp_exp <= tmp_res[23:16];
-        adj_exp_done <= False;
-        helper <= True;
+    rule rl_adj_exp(got_s && got_c && swap_done && sign_done && cmp_exp_done && align_man_done && calc_fraction_done && !adj_exp_done && !add_done && !(handle_zero || input_zero));
+	    $display($stime, " calculated mantissa c %b", temp_man);
+	    if(temp_man[48] == 1'b1) begin
+		    adj_exp_done <= True;
+	    end
+	    else begin
+		    // adding 2's compliment of 1 with exponent to reduce it by 1
+		    tmp_exp <= add_exponents(tmp_exp, 8'b11111111);
+		    temp_man <= temp_man << 1;
+	    end
     endrule
 
-    rule rl_round_mantissa(got_s && got_c && !mul_done && sign_done && exp_done && mul_count == 0 && mantissa_done && adj_exp_done && helper && !round_done);
-        mantissa_res <= rounding_mul_mantissa(tmp_res[14:0]);
-        exp_res <= tmp_res[23:16];
-        round_done <= True;
+    rule rl_adj_mantissa(got_s && got_c && swap_done && sign_done && cmp_exp_done && align_man_done && calc_fraction_done && adj_exp_done && !mantissa_done && !add_done && !(handle_zero || input_zero));
+	    $display($stime, " mantissa: %b", temp_man);
+	    exp_mantissa <= rounding_mantissa(temp_man, tmp_exp);
+	    mantissa_done <= True;
     endrule
 
-    // Rule to compute the result when both inputs are available
-    rule get_mul_res(got_s && got_c && !mul_done && round_done);
-        
-        // Intermediate variables
-        result_mul <= Bf16{sign: tmp_sign, exp: exp_res, mantissa: mantissa_res};
-        result_concatenated <= True;
-        mul_done <= True;
-        sign_done <= False;
-        exp_done <= False;
-        mantissa_done <= True;
+    rule rl_assemble_result(got_s && got_c && swap_done && sign_done && cmp_exp_done && align_man_done && calc_fraction_done && adj_exp_done && mantissa_done && !add_done && !(handle_zero || input_zero));
+	    $display($stime, " End Result sign:%b exp: %b mantissa: %b ", tmp_sign, exp_mantissa[30:23], exp_mantissa[22:0]);
+	    end_result <= {tmp_sign, exp_mantissa};
+	    pack_done <= True;
+	    add_done <= True;
     endrule
 
-    rule get_add_res(mul_done); 
-        // result_add <= 32'd0;
-        mul_done <= False;
+    rule rl_handle_zero_val(handle_zero || input_zero); 
+	    if (handle_zero) begin
+		    end_result <= 32'd0;
+	    end
+	    else if(input_zero) begin
+		    if (input_no == 0) begin
+			    end_result <= pack(c);
+		    end
+		    else begin
+			    end_result <= pack(s);
+		    end
+	    end
+	    pack_done <= True;
+	    add_done <= True;
     endrule
+
+    rule rl_deassert_signals(add_done);
+	    got_s <= False;
+	    got_c <= False;
+	    swap_done <= False;
+	    sign_done <= False;
+	    cmp_exp_done <= False;
+	    align_man_done <= False;
+	    calc_fraction_done <= False;
+	    adj_exp_done <= False;
+	    mantissa_done <= False;
+	    // add_done <= False;
+	    handle_zero <= False;
+	    input_zero <= False;
+	    add_or_sub <= 0;
+	    addition_start <= False;
+    endrule
+
+    // method Action add_start(Bool start) if(!addition_start);
+    //         addition_start <= start;
+    //         pack_done <= False;
+    // endmethod
 
     // Method to set input A
-    method Action get_inp_s(Bit#(32) inp_S);
-        s <= Fp32{sign:inp_S[31], exp:inp_S[30:23], mantissa:inp_S[22:0]};
-        got_s <= True;
+    method Action get_inp_s(Bit#(32) inp_S) if(!got_s && !add_done);
+	    pack_done <= False;
+	    s <= Fp32{sign:inp_S[31], exp:inp_S[30:23], mantissa:inp_S[22:0]};
+	    got_s <= True;
     endmethod
 
     // Method to set input B
-    method Action get_inp_c(Bit#(32) inp_C);
-        c <= Fp32{sign:inp_C[31], exp:inp_C[30:23], mantissa:inp_C[22:0]};
-        got_c <= True;
+    method Action get_inp_c(Bit#(32) inp_C) if(!got_c && !add_done);
+	    c <= Fp32{sign:inp_C[31], exp:inp_C[30:23], mantissa:inp_C[22:0]};
+	    got_c <= True;
     endmethod
 
     // Method to get the result
-    method Fp32 get_result() if(result_concatenated == True && mul_done == True);
-        return result_mul;
+    method Bit#(32) get_result() if(pack_done);
+        return end_result;
     endmethod
 
 endmodule: mkUnpipelined_float_add
 
-endpackage
+endpackage: MAC_unpipelined_float_add

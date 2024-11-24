@@ -5,11 +5,11 @@ PWD=$(shell pwd)
 
 export PYTHONPATH:=$(PWD)/verif:$(PYTHONPATH)
 
-VERILOG_SOURCES=$(PWD)/verilog/mkUnpipelined.v
+VERILOG_SOURCES=$(PWD)/verilog/*.v
 
 EXTRA_ARGS = --trace --trace-structs
 
-TOPLEVEL = mkUnpipelined
+TOPLEVEL = mkUnpipelined_float
 MODULE   := test_MAC_fp
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
