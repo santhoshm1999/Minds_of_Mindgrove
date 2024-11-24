@@ -1,0 +1,80 @@
+=== Generated schedule for mkPipelined_float ===
+
+Method schedule
+---------------
+Method: get_input_a
+Ready signal: ! val_a_rv.port1__read[16]
+Conflict-free: get_input_b, get_input_s, get_input_c
+Sequenced after (restricted): get_MAC_result
+Conflicts: get_input_a
+ 
+Method: get_input_b
+Ready signal: ! val_b_rv.port1__read[16]
+Conflict-free: get_input_a, get_input_s, get_input_c
+Sequenced after (restricted): get_MAC_result
+Conflicts: get_input_b
+ 
+Method: get_input_s
+Ready signal: True
+Conflict-free: get_input_a,
+	       get_input_b,
+	       get_input_s,
+	       get_input_c,
+	       get_MAC_result
+ 
+Method: get_input_c
+Ready signal: ! val_c_rv.port1__read[32]
+Conflict-free: get_input_a, get_input_b, get_input_s
+Sequenced after (restricted): get_MAC_result
+Conflicts: get_input_c
+ 
+Method: get_MAC_result
+Ready signal: val_mac_rv.port0__read[32] && mac_completed
+Conflict-free: get_input_s
+Sequenced before (restricted): get_input_a, get_input_b, get_input_c
+Conflicts: get_MAC_result
+ 
+Rule schedule
+-------------
+Rule: rl_start_MAC
+Predicate: val_a_rv.port0__read[16] &&
+	   val_b_rv.port0__read[16] && val_c_rv.port0__read[32] &&
+	   (! start_done)
+Blocking rules: (none)
+ 
+Rule: rl_put_mul_val
+Predicate: mul.RDY_get_inp_a && mul.RDY_get_inp_b &&
+	   start_done && (! mul_started)
+Blocking rules: (none)
+ 
+Rule: get_mul_result
+Predicate: mul.RDY_get_result && (! val_mul_rv.port1__read[16]) && mul_started
+Blocking rules: (none)
+ 
+Rule: rl_put_add_val
+Predicate: val_mul_rv.port0__read[16] &&
+	   add.RDY_get_inp_c && add.RDY_get_inp_s
+Blocking rules: (none)
+ 
+Rule: rl_get_add_result
+Predicate: add.RDY_get_result && (! val_mac_rv.port1__read[32]) &&
+	   start_done && add_started
+Blocking rules: (none)
+ 
+Rule: rl_deassert_signals
+Predicate: mac_completed
+Blocking rules: rl_get_add_result
+ 
+Logical execution order: get_input_s,
+			 get_MAC_result,
+			 rl_put_mul_val,
+			 rl_get_add_result,
+			 rl_put_add_val,
+			 rl_start_MAC,
+			 get_input_a,
+			 get_input_b,
+			 get_input_c,
+			 get_mul_result,
+			 rl_deassert_signals
+
+=================================================

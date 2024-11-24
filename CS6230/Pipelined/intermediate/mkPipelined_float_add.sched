@@ -1,0 +1,113 @@
+=== Generated schedule for mkPipelined_float_add ===
+
+Method schedule
+---------------
+Method: get_inp_s
+Ready signal: ! fifo_s_rv.port1__read[32]
+Conflict-free: get_inp_c
+Sequenced after (restricted): get_result
+Conflicts: get_inp_s
+ 
+Method: get_inp_c
+Ready signal: ! fifo_c_rv.port1__read[32]
+Conflict-free: get_inp_s
+Sequenced after (restricted): get_result
+Conflicts: get_inp_c
+ 
+Method: get_result
+Ready signal: fifo_add_rv.port0__read[32] && pack_done
+Sequenced before (restricted): get_inp_s, get_inp_c
+Conflicts: get_result
+ 
+Rule schedule
+-------------
+Rule: rl_add_start
+Predicate: fifo_s_rv.port0__read[32] && fifo_c_rv.port0__read[32] &&
+	   (! add_start)
+Blocking rules: (none)
+ 
+Rule: rl_swap
+Predicate: add_start && (! swap_done) && (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_get_sign
+Predicate: add_start && swap_done && (! add_done) && (! sign_done) &&
+	   (! handle_zero) &&
+	   (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_cmp_exp
+Predicate: add_start && swap_done && sign_done && (! cmp_exp_done) &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_align_exp
+Predicate: add_start && swap_done && sign_done && cmp_exp_done &&
+	   (! align_man_done) &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_add_or_sub_exp
+Predicate: add_start && swap_done && sign_done && cmp_exp_done &&
+	   align_man_done &&
+	   (! calc_fraction_done) &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_adj_exp
+Predicate: add_start && swap_done && sign_done && cmp_exp_done &&
+	   align_man_done &&
+	   calc_fraction_done &&
+	   (! adj_exp_done) &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_adj_mantissa
+Predicate: add_start && swap_done && sign_done && cmp_exp_done &&
+	   align_man_done &&
+	   calc_fraction_done &&
+	   adj_exp_done &&
+	   (! mantissa_done) &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_assemble_result
+Predicate: (! fifo_add_rv.port1__read[32]) &&
+	   add_start && swap_done && sign_done && cmp_exp_done &&
+	   align_man_done &&
+	   calc_fraction_done &&
+	   adj_exp_done &&
+	   mantissa_done &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_handle_zero_val
+Predicate: (! fifo_add_rv.port1__read[32]) && (handle_zero || input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_deassert_signals
+Predicate: add_done
+Blocking rules: rl_handle_zero_val
+ 
+Logical execution order: get_result,
+			 rl_swap,
+			 rl_get_sign,
+			 rl_cmp_exp,
+			 rl_align_exp,
+			 rl_add_or_sub_exp,
+			 rl_adj_exp,
+			 rl_adj_mantissa,
+			 rl_assemble_result,
+			 rl_handle_zero_val,
+			 rl_add_start,
+			 get_inp_s,
+			 get_inp_c,
+			 rl_deassert_signals
+
+=====================================================
