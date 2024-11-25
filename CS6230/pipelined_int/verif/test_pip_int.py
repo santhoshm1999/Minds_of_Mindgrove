@@ -38,8 +38,14 @@ async def send_val(dut,A,B,C,S):
     print("********************GIVEN****************************")
 
 async def receive_val(dut):
-    await RisingEdge(dut.got_result) #11 awaits
-    ans = dut.get_output.value
+    # await RisingEdge(dut.got_result) #11 awaits
+    while True:
+        if(dut.RDY_get_output.value):
+            dut.EN_get_output.value = 1
+            ans = dut.get_output.value
+            await RisingEdge(dut.CLK)
+            break
+        await RisingEdge(dut.CLK)
     print("******************RECEIVED***************************")
     str_ans = str(ans)
     if(str_ans[0] == "1"):
