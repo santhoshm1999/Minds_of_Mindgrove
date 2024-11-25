@@ -514,45 +514,79 @@ def MAC(val1, val2, val3, ref_val, ref_mul):
         else:
             print(f'ref_val: {ref_val}    res_add: {res_add}')
             print('ADD_FAIL')
+    # exit(1)
+
+
+# for i in range(0, len(a)):
+#     print(f'****************************************  {i}  ****************************************')
+#     ref_a = a[i][:-1]
+#     ref_b = b[i][:-1]
+#     ref_c = c[i][:-1]
+#     ref_ans_bin = ref_ans[i][:-1]
+#     ref_mul_bin = ref_mul[i][:-1]
+#     # a_val = bin(a[i]).replace("0b","").ljust(16, '0')
+#     # b_val = bin(b[i]).replace("0b","").ljust(16, '0')
+#     # c_val = bin(c[i]).replace("0b","").ljust(32, '0')
+#     # ref_val = bin(ref_ans[i]).replace("0b","")
+#     # mul(a[i],b[i],c[i], ref_ans[i])
+#     # MAC(bin(a[i]),bin(b[i]),bin(c[i]))
+#     # MAC(10.75,7868380086272.0,25.345001220703125)
+#     # MAC(340282346600000000000000000000000000000,2.0,2.0)
+#     # MAC(100.5,2.0,2.0)
+#     MAC(ref_a,ref_b,ref_c,ref_ans_bin, ref_mul_bin)
+
+
+
+
+
 
 
 async def test_1(dut, i):
-    clock = Clock(dut.CLK, 10, units="us")  
-    cocotb.start_soon(clock.start(start_high=False))
-    await reset(dut)
-
-    while True:
-        if(dut.RDY_get_start.value == 1):
-            dut.get_start_start.value = 1
-            dut.EN_get_start.value = 1
-            dut._log.info("MAC started")            
-            break
-        await RisingEdge(dut.CLK)
+    # @cocotb.test()
+    # async def test_1(dut):
+    #     i = 8
     a_val = int(a[i][:-1],2)
     b_val = int(b[i][:-1],2)
     c_val = int(c[i][:-1],2)
+    # if i != 0:
+    #     i = i - 1
+    ref_mul_val = ref_mul[i][:-1]
     dut._log.info(f"a_val: {bin(a_val).replace('0b','').rjust(16,'0')}")
     dut._log.info(f"b_val: {bin(b_val).replace('0b','').rjust(16,'0')}")
     dut._log.info(f"c_val: {bin(c_val).replace('0b','').rjust(16,'0')}")
+    
+    cocotb.start_soon(Clock(dut.CLK, 1, units='ns').start())
+    await reset(dut)
+    dut._log.info("MAC started")
 
+    # for i in range(0, 1000):
+    # dut.get_inp_a_inp_A.value = 0b0100000100101100
     while True:
+        dut._log.info("Inside first loop")
         if (dut.RDY_get_input_a.value == 1):
-            dut.get_input_a_a.value = a_val
             dut.EN_get_input_a.value = 1
+            dut.get_input_a_a.value = a_val
+            await RisingEdge(dut.CLK)
+            dut.EN_get_input_a.value = 0
             break
         await RisingEdge(dut.CLK)
-
     while True:
+        dut._log.info("Inside 2nd loop")
         if (dut.RDY_get_input_b.value == 1):
             dut.get_input_b_b.value = b_val
             dut.EN_get_input_b.value = 1
+            await RisingEdge(dut.CLK)
+            dut.EN_get_input_b.value = 0
             break
         await RisingEdge(dut.CLK)
 
     while True:
+        dut._log.info("Inside 3rd loop")
         if (dut.RDY_get_input_c.value == 1):
             dut.get_input_c_c.value = c_val
             dut.EN_get_input_c.value = 1
+            await RisingEdge(dut.CLK)
+            dut.EN_get_input_c.value = 0
             break
         await RisingEdge(dut.CLK)
 
@@ -562,32 +596,62 @@ async def test_1(dut, i):
     ref_ans_man = ref_ans_val[9:]
 
     while True:
+        dut._log.info("Inside mul answer loop")
+        if dut.mul_RDY_get_result.value == 1:
+            await RisingEdge(dut.CLK)
+            mul_res = str(dut.mul_get_result.value)
+            dut._log.info(f"MUL Res: {mul_res}")
+            # mul(str(dut.get_result.value))
+            break
+        await RisingEdge(dut.CLK)
+
+    assert mul_res == ref_mul_val,f'Got: {mul_res} Actual: {ref_mul_val}   i={i}'
+    
+
+    dut._log.info("before the loop")
+    while True:
+        # dut._log.info("inside the loop")
         if dut.RDY_get_input_s.value == 1:
             dut.EN_get_input_s.value = 1
+            await RisingEdge(dut.CLK)
+            dut.EN_get_input_s.value = 0
             break
         await RisingEdge(dut.CLK)
     
+    dut._log.info("Before answer loop")
     while True:
+        dut._log.info("Inside answer loop")
         if dut.RDY_get_MAC_result.value == 1:
             await RisingEdge(dut.CLK)
             final_res = str(dut.get_MAC_result.value)
             dut._log.info(f"MAC Res: {final_res}")
+            # mul(str(dut.get_result.value))
             break
         await RisingEdge(dut.CLK)
-
     assert final_res[0] == ref_ans_sign,f'sign not matched Got: {final_res[0]} Actual: {ref_ans_sign}    i = {i}'
     assert final_res[9:] == ref_ans_man,f'mantissa not matched Got: {final_res[9:]} Actual: {ref_ans_man}    i = {i}'
     assert final_res[1:9] == ref_ans_exp,f'exp not matched Got: {final_res[1:9]} Actual: {ref_ans_exp}    i = {i}'
+    # assert final_res == ref_mul_val,f'Got: {final_res} Actual: {ref_mul_val}'
     assert final_res == ref_ans_val,f'Got: {final_res} Actual: {ref_ans_val}    i = {i}'
 
-    while True:
-        if (dut.get_stop.value == 0):
-            break
-        await RisingEdge(dut.CLK)
+    # while True:
+    #     if (dut.RDY_get_start.value == 1):
+    #         dut.get_start_start.value = 0
+    #         dut.EN_get_start.value = 1
+    #         dut._log.info("MAC started")
+    #         break
+    #     await RisingEdge(dut.CLK)
+
+    # await reset(dut)
+
+    # while True:
+    #     if (dut.get_stop.value == 0):
+    #         break
+    #     await RisingEdge(dut.CLK)
     dut._log.info("MAC float Completed")
 
 
 
 Tf = TestFactory(test_1)
-Tf.add_option(name = "i",optionlist = list(range(2)))
+Tf.add_option(name = "i",optionlist = list(range(1000)))
 Tf.generate_tests()

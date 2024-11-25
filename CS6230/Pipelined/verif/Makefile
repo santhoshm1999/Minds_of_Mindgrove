@@ -9,7 +9,7 @@ VERILOG_SOURCES=$(PWD)/verilog/*.v
 
 EXTRA_ARGS = --trace --trace-structs
 
-TOPLEVEL = mkUnpipelined_float
+TOPLEVEL = mkPipelined_float
 MODULE   := test_MAC_fp
 
 include $(shell cocotb-config --makefiles)/Makefile.sim

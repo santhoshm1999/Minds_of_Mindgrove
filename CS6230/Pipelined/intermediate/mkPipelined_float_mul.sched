@@ -1,0 +1,79 @@
+=== Generated schedule for mkPipelined_float_mul ===
+
+Method schedule
+---------------
+Method: get_inp_a
+Ready signal: ! fifo_a_rv.port1__read[16]
+Conflict-free: get_inp_b, get_result
+Conflicts: get_inp_a
+ 
+Method: get_inp_b
+Ready signal: ! fifo_b_rv.port1__read[16]
+Conflict-free: get_inp_a, get_result
+Conflicts: get_inp_b
+ 
+Method: get_result
+Ready signal: res_deq_done
+Conflict-free: get_inp_a, get_inp_b, get_result
+ 
+Rule schedule
+-------------
+Rule: rl_starting
+Predicate: fifo_a_rv.port0__read[16] && fifo_b_rv.port0__read[16] &&
+	   (! start_done)
+Blocking rules: (none)
+ 
+Rule: rl_get_sign
+Predicate: start_done && (! mul_done) && (! sign_done)
+Blocking rules: (none)
+ 
+Rule: rl_add_exp
+Predicate: start_done && (! mul_done) && sign_done && (! exp_done) &&
+	   (mul_count == 4'd0) &&
+	   (! handle_zero)
+Blocking rules: (none)
+ 
+Rule: rl_mul_mantissa
+Predicate: start_done && (! mul_done) && sign_done && exp_done &&
+	   (! (mul_count == 4'd0)) &&
+	   (! handle_zero)
+Blocking rules: (none)
+ 
+Rule: rl_round_mantissa
+Predicate: start_done && (! mul_done) && sign_done && exp_done &&
+	   (mul_count == 4'd0) &&
+	   (! mantissa_done) &&
+	   (! handle_zero)
+Blocking rules: (none)
+ 
+Rule: rl_handling_zero
+Predicate: (! fifo_res_rv.port1__read[16]) && start_done && handle_zero
+Blocking rules: rl_get_sign
+ 
+Rule: rl_get_mul_res
+Predicate: (! fifo_res_rv.port1__read[16]) &&
+	   start_done && (! mul_done) && mantissa_done && (! handle_zero)
+Blocking rules: reset_signals, rl_get_sign
+ 
+Rule: reset_signals
+Predicate: result_concatenated
+Blocking rules: (none)
+ 
+Rule: res_fifo_deq
+Predicate: fifo_res_rv.port0__read[16] && mul_done
+Blocking rules: (none)
+ 
+Logical execution order: get_result,
+			 rl_starting,
+			 get_inp_a,
+			 get_inp_b,
+			 rl_get_sign,
+			 rl_add_exp,
+			 rl_mul_mantissa,
+			 rl_round_mantissa,
+			 reset_signals,
+			 res_fifo_deq,
+			 rl_handling_zero,
+			 rl_get_mul_res
+
+=====================================================
