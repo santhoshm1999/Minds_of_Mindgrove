@@ -1,0 +1,65 @@
+=== Generated schedule for mkMAC_pipelined ===
+
+Method schedule
+---------------
+Method: get_A
+Ready signal: ! inpA_fifo_rv.port1__read[16]
+Conflict-free: get_B, get_C, get_select
+Sequenced after (restricted): output_MAC
+Conflicts: get_A
+ 
+Method: get_B
+Ready signal: ! inpB_fifo_rv.port1__read[16]
+Conflict-free: get_A, get_C, get_select
+Sequenced after (restricted): output_MAC
+Conflicts: get_B
+ 
+Method: get_C
+Ready signal: ! inpC_fifo_rv.port1__read[32]
+Conflict-free: get_A, get_B, get_select
+Sequenced after (restricted): output_MAC
+Conflicts: get_C
+ 
+Method: get_select
+Ready signal: ! inpS_fifo_rv.port1__read[1]
+Conflict-free: get_A, get_B, get_C
+Sequenced after (restricted): output_MAC
+Conflicts: get_select
+ 
+Method: output_MAC
+Ready signal: out_fifo_rv.port0__read[32]
+Sequenced before (restricted): get_A, get_B, get_C, get_select
+Conflicts: output_MAC
+ 
+Rule schedule
+-------------
+Rule: call_MAC
+Predicate: inpS_fifo_rv.port0__read[1] &&
+	   inpA_fifo_rv.port0__read[16] &&
+	   inpB_fifo_rv.port0__read[16] &&
+	   inpC_fifo_rv.port0__read[32] &&
+	   mac_float.RDY_get_input_a &&
+	   mac_float.RDY_get_input_b && mac_float.RDY_get_input_c &&
+	   mac_int.RDY_get_A && mac_int.RDY_get_B && mac_int.RDY_get_C
+Blocking rules: (none)
+ 
+Rule: get_output_from_intMAC
+Predicate: mac_int.RDY_get_output && (! out_fifo_rv.port1__read[32]) &&
+	   (! sel)
+Blocking rules: (none)
+ 
+Rule: get_output_from_floatMAC
+Predicate: mac_float.RDY_get_MAC_result && (! out_fifo_rv.port1__read[32]) &&
+	   sel
+Blocking rules: (none)
+ 
+Logical execution order: output_MAC,
+			 get_output_from_intMAC,
+			 get_output_from_floatMAC,
+			 call_MAC,
+			 get_A,
+			 get_B,
+			 get_C,
+			 get_select
+
+===============================================
