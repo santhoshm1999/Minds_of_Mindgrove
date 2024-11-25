@@ -78,7 +78,7 @@ async def reset(dut):
 
 @cocotb.test()
 async def test_1(dut):
-    i = 2
+    i = 4
     s = 0
 
     if(s == 0):
@@ -136,7 +136,7 @@ async def test_1(dut):
         dut._log.info("Inside 3rd loop")
         if (dut.RDY_get_C.value == 1):
             dut.EN_get_C.value = 1
-            dut.get_C_b.value = c_val
+            dut.get_C_c.value = c_val
             await RisingEdge(dut.CLK)
             dut.EN_get_C.value = 0
             break

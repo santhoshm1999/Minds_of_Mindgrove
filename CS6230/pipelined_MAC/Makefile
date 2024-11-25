@@ -4,7 +4,7 @@ BSCDEFINES=RV64
 VERILOGDIR=verilog/
 BUILDDIR=intermediate/
 
-# include MAC_pipelined_verif/Makefile.verif
+include verif/Makefile
 
 .PHONY: simulate
 simulate: 
@@ -17,9 +17,9 @@ generate_verilog:
 
 .PHONY: clean_build
 clean_build:
-	@make clean
+	# @make clean
 	@rm -rf $(VERILOGDIR) $(BUILDDIR)
-	@rm -rf MAC_pipelined_verif/__pycache__
+	@rm -rf verif/__pycache__
 	@rm -rf results.xml cov*.yml
 	@rm -rf *.vcd results.xml sim_build
 	@echo "Cleaned"
