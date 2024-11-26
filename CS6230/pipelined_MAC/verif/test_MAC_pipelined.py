@@ -50,19 +50,19 @@ file1 = open('bf16_MAC/MAC_binary.txt')
 fl_ref_ans = file1.readlines()
 file1.close()
 
-file1 = open('int8_MAC/A_binary.txt')
+file1 = open('int8_MAC/A_decimal.txt')
 int_a = file1.readlines()
 file1.close()
 
-file1 = open('int8_MAC/B_binary.txt')
+file1 = open('int8_MAC/B_decimal.txt')
 int_b = file1.readlines()
 file1.close()
 
-file1 = open('int8_MAC/C_binary.txt')
+file1 = open('int8_MAC/C_decimal.txt')
 int_c = file1.readlines()
 file1.close()
 
-file1 = open('int8_MAC/MAC_binary.txt')
+file1 = open('int8_MAC/MAC_decimal.txt')
 int_ref_ans = file1.readlines()
 file1.close()
 
@@ -77,26 +77,31 @@ async def reset(dut):
 
 
 @cocotb.test()
-async def test_1(dut):
-    i = 4
-    s = 0
+async def test_sample(dut):
+    cocotb.start_soon(Clock(dut.CLK, 1, units='ns').start())
+    await reset(dut)
+
+
+async def test_1(dut, i, s):
 
     if(s == 0):
-        a_val = int(int_a[i][:-1],2)
-        b_val = int(int_b[i][:-1],2)
-        c_val = int(int_c[i][:-1],2)
-        ref_ans_val = int_ref_ans[i][:-1]
+        a_val = int(int_a[i][:-1])
+        b_val = int(int_b[i][:-1])
+        c_val = int(int_c[i][:-1])
+        ref_ans_val = int(int_ref_ans[i][:-1])
+        dut._log.info(f"int_a_val: {int_a[i][:-1]}")
+        dut._log.info(f"int_b_val: {int_b[i][:-1]}")
+        dut._log.info(f"int_c_val: {int_c[i][:-1]}")
+        dut._log.info(f"int_ref_ans: {int_ref_ans[i][:-1]}")
     elif(s == 1):
         a_val = int(fl_a[i][:-1],2)
         b_val = int(fl_b[i][:-1],2)
         c_val = int(fl_c[i][:-1],2)
         ref_ans_val = fl_ref_ans[i][:-1]
-    # if i != 0:
-    #     i = i - 1
-    # ref_mul_val = ref_mul[i][:-1]
-    dut._log.info(f"a_val: {bin(a_val).replace('0b','').rjust(16,'0')}")
-    dut._log.info(f"b_val: {bin(b_val).replace('0b','').rjust(16,'0')}")
-    dut._log.info(f"c_val: {bin(c_val).replace('0b','').rjust(16,'0')}")
+        dut._log.info(f"fl_a_val: {fl_a[i][:-1]}")
+        dut._log.info(f"fl_b_val: {fl_b[i][:-1]}")
+        dut._log.info(f"fl_c_val: {fl_c[i][:-1]}")
+        dut._log.info(f"fl_ref_ans: {fl_ref_ans[i][:-1]}")
     
     cocotb.start_soon(Clock(dut.CLK, 1, units='ns').start())
     await reset(dut)
@@ -113,7 +118,7 @@ async def test_1(dut):
         await RisingEdge(dut.CLK)
 
     while True:
-        dut._log.info("Inside first loop")
+        dut._log.info("Inside second loop")
         if (dut.RDY_get_A.value == 1):
             dut.EN_get_A.value = 1
             dut.get_A_a.value = a_val
@@ -123,7 +128,7 @@ async def test_1(dut):
         await RisingEdge(dut.CLK)
 
     while True:
-        dut._log.info("Inside 2nd loop")
+        dut._log.info("Inside 3rd loop")
         if (dut.RDY_get_B.value == 1):
             dut.EN_get_B.value = 1
             dut.get_B_b.value = b_val
@@ -133,7 +138,7 @@ async def test_1(dut):
         await RisingEdge(dut.CLK)
 
     while True:
-        dut._log.info("Inside 3rd loop")
+        dut._log.info("Inside 4th loop")
         if (dut.RDY_get_C.value == 1):
             dut.EN_get_C.value = 1
             dut.get_C_c.value = c_val
@@ -159,7 +164,19 @@ async def test_1(dut):
         await RisingEdge(dut.CLK)
         timeout = timeout-1
 
-    assert final_res == ref_ans_val,f'Got: {final_res} Actual: {ref_ans_val}    i = {i}'
-
+    if (s == 0):
+        if(final_res[0] == "1"):
+            ans = ((int(final_res,2) ^ 0xFFFFFFFF) + 1) * -1
+        else:
+            ans = int(final_res,2)
+        assert ans == ref_ans_val,f'Got: {ans} Actual: {ref_ans_val}'
+    else:
+        assert final_res == ref_ans_val,f'Got: {final_res} Actual: {ref_ans_val}'
 
     dut._log.info("MAC float Completed")
+
+
+Tf = TestFactory(test_1)
+Tf.add_option(name = "i",optionlist = list(range(1000)))
+Tf.add_option(name = "s",optionlist = [0,1])
+Tf.generate_tests()

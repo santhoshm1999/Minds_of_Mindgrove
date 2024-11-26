@@ -35,7 +35,7 @@ module mkintmul(Ifc_MAC_pipelined_int);
     Reg#(Bool) mul_done <- mkReg(False);
     Reg#(Bool) add_done <- mkReg(False);
     Reg#(Bool) got_result <- mkReg(False);
-    Reg#(Bool) got_select <- mkReg(False);
+    // Reg#(Bool) got_select <- mkReg(False);
     Reg#(Bool) finish <- mkReg(True);
 
     Reg#(Bit#(16)) temp <- mkReg(0);
@@ -93,7 +93,7 @@ module mkintmul(Ifc_MAC_pipelined_int);
 	    start_done <= True;
     endrule
 
-    rule rl_multiply(start_done && got_A && got_B && got_C && got_select && counter != 5'd0 && finish);
+    rule rl_multiply(start_done && got_A && got_B && got_C && counter != 5'd0 && finish);
         $display("Multiply");
         if(inpB[0] == 1)
         begin
@@ -137,7 +137,7 @@ module mkintmul(Ifc_MAC_pipelined_int);
         got_A <= False;
         got_B <= False;
         got_C <= False;
-        got_select <= False;
+        // got_select <= False;
         mul_done <= False;
         counter <= 9;
         finish <= True;
@@ -160,10 +160,10 @@ module mkintmul(Ifc_MAC_pipelined_int);
         got_C <= True;
     endmethod
 
-    method Action get_select(Bit#(1)s); 
-        select <= s;
-        got_select <= True;
-    endmethod
+    // method Action get_select(Bit#(1)s); 
+    //     select <= s;
+    //     got_select <= True;
+    // endmethod
 
     method ActionValue#(Bit#(32)) get_output() if(got_result);
         Bit#(32)rg_mac_result = val_mac.first();
