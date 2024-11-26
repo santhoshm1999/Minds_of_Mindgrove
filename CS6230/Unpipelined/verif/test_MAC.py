@@ -30,23 +30,19 @@ file1 = open('bf16_MAC/MAC_binary.txt')
 fl_ref_ans = file1.readlines()
 file1.close()
 
-# file1 = open('test_cases/combined_AB_binary.txt')
-# ref_mul = file1.readlines()
-# file1.close()
-
-file1 = open('int8_MAC/A_binary.txt')
+file1 = open('int8_MAC/A_decimal.txt')
 int_a = file1.readlines()
 file1.close()
 
-file1 = open('int8_MAC/B_binary.txt')
+file1 = open('int8_MAC/B_decimal.txt')
 int_b = file1.readlines()
 file1.close()
 
-file1 = open('int8_MAC/C_binary.txt')
+file1 = open('int8_MAC/C_decimal.txt')
 int_c = file1.readlines()
 file1.close()
 
-file1 = open('int8_MAC/MAC_binary.txt')
+file1 = open('int8_MAC/MAC_decimal.txt')
 int_ref_ans = file1.readlines()
 file1.close()
 
@@ -63,9 +59,9 @@ async def reset(dut):
 async def test_1(dut, i, s):
 
     if(s == 0):
-        a_val = int(int_a[i][:-1],2)
-        b_val = int(int_b[i][:-1],2)
-        c_val = int(int_c[i][:-1],2)
+        a_val = int(int_a[i][:-1])
+        b_val = int(int_b[i][:-1])
+        c_val = int(int_c[i][:-1])
         ref_ans_val = int(int_ref_ans[i][:-1])
         dut._log.info(f"int_a_val: {int_a[i][:-1]}")
         dut._log.info(f"int_b_val: {int_b[i][:-1]}")
