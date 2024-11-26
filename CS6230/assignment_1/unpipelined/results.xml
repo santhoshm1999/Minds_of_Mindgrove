@@ -1,0 +1,8 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1732605502" />
+    <testcase name="test_mul_001" classname="test_MAC_int" file="/home/shakti/.pyenv/versions/3.8.10/envs/py38/lib/python3.8/site-packages/cocotb/regression.py" lineno="621" time="0.020413637161254883" sim_time_ns="25000.001" ratio_time="1224671.5664884083">
+      <failure />
+    </testcase>
+  </testsuite>
+</testsuites>

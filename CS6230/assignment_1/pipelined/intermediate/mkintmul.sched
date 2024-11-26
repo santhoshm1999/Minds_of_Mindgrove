@@ -1,0 +1,74 @@
+=== Generated schedule for mkintmul ===
+
+Method schedule
+---------------
+Method: get_A
+Ready signal: ! val_a_rv.port1__read[16]
+Conflict-free: get_B, get_C, get_select, get_output
+Conflicts: get_A
+ 
+Method: get_B
+Ready signal: ! val_b_rv.port1__read[16]
+Conflict-free: get_A, get_C, get_select, get_output
+Conflicts: get_B
+ 
+Method: get_C
+Ready signal: ! val_c_rv.port1__read[32]
+Conflict-free: get_A, get_B, get_select, get_output
+Conflicts: get_C
+ 
+Method: get_select
+Ready signal: True
+Conflict-free: get_A, get_B, get_C, get_select, get_output
+ 
+Method: get_output
+Ready signal: val_mac_rv.port0__read[32] && got_result
+Conflict-free: get_A, get_B, get_C, get_select
+Conflicts: get_output
+ 
+Rule schedule
+-------------
+Rule: rl_start_MAC
+Predicate: val_a_rv.port0__read[16] &&
+	   val_b_rv.port0__read[16] && val_c_rv.port0__read[32] &&
+	   (! start_done)
+Blocking rules: (none)
+ 
+Rule: rl_multiply
+Predicate: start_done && got_A && got_B && got_C && (! (counter == 5'd0)) &&
+	   finish
+Blocking rules: (none)
+ 
+Rule: rl_mul
+Predicate: (! val_mul_rv.port1__read[32]) &&
+	   start_done && (! mul_done) && (counter == 5'd0) && (! add_done) &&
+	   (! got_result)
+Blocking rules: (none)
+ 
+Rule: rl_add
+Predicate: val_mul_rv.port0__read[32] &&
+	   start_done && mul_done && (! add_done) && (! got_result)
+Blocking rules: (none)
+ 
+Rule: rl_done
+Predicate: (! val_mac_rv.port1__read[32]) &&
+	   start_done && add_done && (! got_result)
+Blocking rules: (none)
+ 
+Rule: finished
+Predicate: start_done && got_result
+Blocking rules: (none)
+ 
+Logical execution order: get_select,
+			 get_output,
+			 rl_start_MAC,
+			 rl_multiply,
+			 get_A,
+			 get_B,
+			 get_C,
+			 rl_add,
+			 rl_mul,
+			 rl_done,
+			 finished
+
+========================================

@@ -1,0 +1,106 @@
+=== Generated schedule for mkUnpipelined_float_add ===
+
+Method schedule
+---------------
+Method: get_inp_s
+Ready signal: (! got_s) && (! add_done)
+Conflict-free: get_inp_c
+Sequenced after: get_result
+Conflicts: get_inp_s
+ 
+Method: get_inp_c
+Ready signal: (! got_c) && (! add_done)
+Conflict-free: get_inp_s, get_result
+Conflicts: get_inp_c
+ 
+Method: get_result
+Ready signal: pack_done
+Conflict-free: get_inp_c, get_result
+Sequenced before: get_inp_s
+ 
+Rule schedule
+-------------
+Rule: rl_swap
+Predicate: got_s && got_c && (! swap_done) && (! handle_zero) &&
+	   (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_get_sign
+Predicate: got_s && got_c && swap_done && (! add_done) && (! sign_done) &&
+	   (! handle_zero) &&
+	   (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_cmp_exp
+Predicate: got_s && got_c && swap_done && sign_done && (! cmp_exp_done) &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_align_exp
+Predicate: got_s && got_c && swap_done && sign_done && cmp_exp_done &&
+	   (! align_man_done) &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_add_or_sub_exp
+Predicate: got_s && got_c && swap_done && sign_done && cmp_exp_done &&
+	   align_man_done &&
+	   (! calc_fraction_done) &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_adj_exp
+Predicate: got_s && got_c && swap_done && sign_done && cmp_exp_done &&
+	   align_man_done &&
+	   calc_fraction_done &&
+	   (! adj_exp_done) &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_adj_mantissa
+Predicate: got_s && got_c && swap_done && sign_done && cmp_exp_done &&
+	   align_man_done &&
+	   calc_fraction_done &&
+	   adj_exp_done &&
+	   (! mantissa_done) &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_assemble_result
+Predicate: got_s && got_c && swap_done && sign_done && cmp_exp_done &&
+	   align_man_done &&
+	   calc_fraction_done &&
+	   adj_exp_done &&
+	   mantissa_done &&
+	   (! add_done) &&
+	   (! handle_zero) && (! input_zero)
+Blocking rules: (none)
+ 
+Rule: rl_handle_zero_val
+Predicate: handle_zero || input_zero
+Blocking rules: get_inp_c, get_inp_s
+ 
+Rule: rl_deassert_signals
+Predicate: add_done
+Blocking rules: rl_handle_zero_val
+ 
+Logical execution order: get_inp_c,
+			 get_result,
+			 get_inp_s,
+			 rl_swap,
+			 rl_get_sign,
+			 rl_cmp_exp,
+			 rl_align_exp,
+			 rl_add_or_sub_exp,
+			 rl_adj_exp,
+			 rl_adj_mantissa,
+			 rl_assemble_result,
+			 rl_handle_zero_val,
+			 rl_deassert_signals
+
+=======================================================
