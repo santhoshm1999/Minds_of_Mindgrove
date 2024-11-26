@@ -10,6 +10,6 @@ VERILOG_SOURCES=$(PWD)/verilog/*.v
 EXTRA_ARGS = --trace --trace-structs
 
 TOPLEVEL = mkMAC
-MODULE   := test_MAC_fp
+MODULE   := test_MAC
 
 include $(shell cocotb-config --makefiles)/Makefile.sim

@@ -4,7 +4,6 @@ interface Ifc_MAC_unpipelined_int;
     method Action get_A(Bit#(16)a);
     method Action get_B(Bit#(16)b);
     method Action get_C(Bit#(32)c);
-    method Action get_select(Bit#(1)select);
     method Bit#(32) get_output();
 endinterface
 
@@ -25,7 +24,6 @@ module mkintmul(Ifc_MAC_unpipelined_int);
     Reg#(Bool) mul_done <- mkReg(False);
     Reg#(Bool) add_done <- mkReg(False);
     Reg#(Bool) got_result <- mkReg(False);
-    Reg#(Bool) got_select <- mkReg(False);
     Reg#(Bool) finish <- mkReg(True);
 
     Reg#(Bit#(16)) temp <- mkReg(0);
@@ -68,7 +66,7 @@ module mkintmul(Ifc_MAC_unpipelined_int);
         return sum;
     endfunction
 
-    rule rl_multiply(got_A && got_B && got_C && got_select && counter != 5'd0 && finish);
+    rule rl_multiply(got_A && got_B && got_C && counter != 5'd0 && finish);
         if(inpB[0] == 1)
         begin
             if(counter == 5'd1)
@@ -78,7 +76,7 @@ module mkintmul(Ifc_MAC_unpipelined_int);
         end
         inpA <= inpA << 1;
         inpB <= inpB >> 1;
-        counter <= counter - 1; 
+        counter <= counter - 1;
     endrule
 
     rule rl_mul(!mul_done && counter == 5'd0 && !add_done && !got_result);
@@ -103,7 +101,6 @@ module mkintmul(Ifc_MAC_unpipelined_int);
         got_A <= False;
         got_B <= False;
         got_C <= False;
-        got_select <= False;
         mul_done <= False;
         finish <= True;
         got_result <= False;
@@ -124,12 +121,7 @@ module mkintmul(Ifc_MAC_unpipelined_int);
         got_C <= True;
     endmethod
 
-    method Action get_select(Bit#(1)s); 
-        select <= s;
-        got_select <= True;
-    endmethod
-
-    method Bit#(32) get_output();
+    method Bit#(32) get_output() if(got_result);
         return add_out;
     endmethod
 

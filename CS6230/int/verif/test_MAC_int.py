@@ -20,21 +20,21 @@ async def reset(dut):
     await RisingEdge(dut.CLK)
 
 
-async def send_val(dut,A,B,C,S):
+async def send_val(dut,A,B,C):
     dut.get_A_a.value = A
     dut.get_B_b.value = B
     dut.get_C_c.value = C
-    dut.get_select_select.value = S
+    # dut.get_select_s.value = S
     await RisingEdge(dut.CLK)
     dut.EN_get_A.value = 1
     dut.EN_get_B.value = 1
     dut.EN_get_C.value = 1
-    dut.EN_get_select.value = 1
+    # dut.EN_get_select.value = 1
     await RisingEdge(dut.CLK)
     dut.EN_get_A.value = 0
     dut.EN_get_B.value = 0
     dut.EN_get_C.value = 0
-    dut.EN_get_select.value = 0
+    # dut.EN_get_select.value = 0
     print("********************GIVEN****************************")
 
 async def receive_val(dut):
@@ -87,7 +87,7 @@ async def test_mul(dut):
     
     
     for i in range(len(InpA)):
-        await send_val(dut,InpA[i],InpB[i],InpC[i],0)
+        await send_val(dut,InpA[i],InpB[i],InpC[i])
         rec_out = await receive_val(dut)
         print(f"{InpA[i]} {InpB[i]} {InpC[i]} {Out[i]} == {rec_out}")
         assert rec_out == Out[i]
