@@ -2,53 +2,60 @@
 
 Method schedule
 ---------------
-Method: get_fl_a
+Method: get_mac_a
 Ready signal: ! got_a
-Conflict-free: get_fl_b, get_fl_c, get_s1_or_s2, get_end_res
-Conflicts: get_fl_a
+Conflict-free: get_mac_b, get_mac_c, get_s1_or_s2, get_end_res
+Conflicts: get_mac_a
  
-Method: get_fl_b
+Method: get_mac_b
 Ready signal: ! got_b
-Conflict-free: get_fl_a, get_fl_c, get_s1_or_s2, get_end_res
-Conflicts: get_fl_b
+Conflict-free: get_mac_a, get_mac_c, get_s1_or_s2, get_end_res
+Conflicts: get_mac_b
  
-Method: get_fl_c
+Method: get_mac_c
 Ready signal: ! got_c
-Conflict-free: get_fl_a, get_fl_b, get_s1_or_s2, get_end_res
-Conflicts: get_fl_c
+Conflict-free: get_mac_a, get_mac_b, get_s1_or_s2, get_end_res
+Conflicts: get_mac_c
  
 Method: get_s1_or_s2
 Ready signal: True
-Conflict-free: get_fl_a, get_fl_b, get_fl_c, get_end_res
+Conflict-free: get_mac_a, get_mac_b, get_mac_c, get_end_res
 Sequenced before (restricted): get_s1_or_s2
  
 Method: get_end_res
 Ready signal: end_res_done
-Conflict-free: get_fl_a, get_fl_b, get_fl_c, get_s1_or_s2, get_end_res
+Conflict-free: get_mac_a, get_mac_b, get_mac_c, get_s1_or_s2, get_end_res
  
 Rule schedule
 -------------
-Rule: rl_put_float_val
+Rule: rl_put_mac_val
 Predicate: float_mac.RDY_get_input_c &&
 	   float_mac.RDY_get_input_b && float_mac.RDY_get_input_a &&
-	   got_si && got_a && got_b && got_c && (! float_inp_done)
+	   got_si && got_a && got_b && got_c && (! int_inp_done) &&
+	   (! float_inp_done)
 Blocking rules: (none)
  
-Rule: rl_get_float_res
+Rule: rl_get_mac_int_res
+Predicate: int_mac.RDY_get_output &&
+	   int_inp_done && (! end_res_done) && (! (counter == 3'd0))
+Blocking rules: (none)
+ 
+Rule: rl_get_mac_float_res
 Predicate: float_mac.RDY_get_MAC_result && float_inp_done && (! end_res_done)
+Blocking rules: rl_get_mac_int_res
+ 
+Rule: deassert_signal
+Predicate: (int_inp_done || float_inp_done) && end_res_done
 Blocking rules: (none)
  
-Rule: deasdrt_signal
-Predicate: float_inp_done && end_res_done
-Blocking rules: (none)
- 
-Logical execution order: get_fl_a,
-			 get_fl_b,
-			 get_fl_c,
+Logical execution order: get_mac_a,
+			 get_mac_b,
+			 get_mac_c,
 			 get_end_res,
-			 rl_get_float_res,
-			 rl_put_float_val,
+			 rl_put_mac_val,
 			 get_s1_or_s2,
-			 deasdrt_signal
+			 rl_get_mac_int_res,
+			 rl_get_mac_float_res,
+			 deassert_signal
 
 =====================================

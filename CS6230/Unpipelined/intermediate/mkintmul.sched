@@ -4,35 +4,27 @@ Method schedule
 ---------------
 Method: get_A
 Ready signal: True
-Conflict-free: get_B, get_C, get_select, get_output
+Conflict-free: get_B, get_C, get_output
 Sequenced before (restricted): get_A
  
 Method: get_B
 Ready signal: True
-Conflict-free: get_A, get_C, get_select, get_output
+Conflict-free: get_A, get_C, get_output
 Sequenced before (restricted): get_B
  
 Method: get_C
 Ready signal: True
-Conflict-free: get_A, get_B, get_select
+Conflict-free: get_A, get_B, get_output
 Sequenced before (restricted): get_C
-Sequenced after (restricted): get_output
- 
-Method: get_select
-Ready signal: True
-Conflict-free: get_A, get_B, get_C, get_output
-Sequenced before (restricted): get_select
  
 Method: get_output
-Ready signal: True
-Conflict-free: get_A, get_B, get_select, get_output
-Sequenced before (restricted): get_C
+Ready signal: got_result
+Conflict-free: get_A, get_B, get_C, get_output
  
 Rule schedule
 -------------
 Rule: rl_multiply
-Predicate: got_A && got_B && got_C && got_select && (! (counter == 5'd0)) &&
-	   finish
+Predicate: got_A && got_B && got_C && (! (counter == 5'd0)) && finish
 Blocking rules: (none)
  
 Rule: rl_mul
@@ -55,7 +47,6 @@ Logical execution order: get_output,
 			 rl_multiply,
 			 get_A,
 			 get_B,
-			 get_select,
 			 rl_mul,
 			 rl_add,
 			 get_C,
