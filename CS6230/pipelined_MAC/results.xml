@@ -1,8 +1,0 @@
-<testsuites name="results">
-  <testsuite name="all" package="all">
-    <property name="random_seed" value="1732567963" />
-    <testcase name="test_1" classname="test_MAC_pipelined" file="/home/shakti/CAD_assignment/CS6230/pipelined_MAC/verif/test_MAC_pipelined.py" lineno="79" time="0.06586408615112305" sim_time_ns="57.001" ratio_time="865.4337034178691">
-      <failure />
-    </testcase>
-  </testsuite>
-</testsuites>
